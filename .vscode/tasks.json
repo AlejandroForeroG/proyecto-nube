@@ -1,0 +1,61 @@
+{
+    "version": "2.0.0",
+    "inputs": [
+          {
+            "id": "sqlCommand",
+            "type": "promptString",
+            "description": "SQL a ejecutar en PostgreSQL",
+            "default": "select * from users;"
+          },
+          {
+            "id": "revMsg",
+            "type": "promptString",
+            "description": "Mensaje de la revisión",
+            "default": "Add new table"
+          }
+        ],
+    "tasks": [
+        {
+            "label": "Test",
+            "type": "shell",
+            "command": "docker compose run --rm rest_api pytest -q",
+            "problemMatcher": []
+        },
+        {
+            "label": "Compose Up",
+            "type": "shell",
+            "command": "docker compose up -d --build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Compose Down",
+            "type": "shell",
+            "command": "docker compose down -v",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run SQL",
+            "type": "shell",
+            "command": "docker compose exec postgres psql -U app_user -d app_db -c '${input:sqlCommand}'",
+            "problemMatcher": []
+        },
+        {
+            "label": "(2) DB: migrate (upgrade head)",
+            "type": "shell",
+            "command": "docker compose run --rm rest_api alembic -c app/alembic.ini upgrade head",
+            "problemMatcher": []
+        },
+        {
+            "label": "(1) DB: revision (autogenerate)",
+            "type": "shell",
+            "command": "docker compose run --rm rest_api alembic -c app/alembic.ini revision --autogenerate -m '${input:revMsg}'",
+            "problemMatcher": []
+        },
+        {
+            "label": "DB: downgrade -1",
+            "type": "shell",
+            "command": "docker compose run --rm rest_api alembic -c app/alembic.ini downgrade -1",
+            "problemMatcher": []
+        }
+    ]
+}

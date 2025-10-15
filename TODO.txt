@@ -1,0 +1,4 @@
+- borrar los videos de uploads 
+- anadir el reto de api s 
+- anadir documentacion
+- anadir nginx 

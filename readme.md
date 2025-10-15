@@ -1,0 +1,118 @@
+## Proyecto: Plataforma de procesamiento de videos (FastAPI + Celery + Nginx)
+### Imtegrantes 
+- Alejandro Forero Gomez
+- David Armando Rodríguez Varón
+- Juan Sebastián Sánchez Tabares
+- Yesid Arley Marin Rivera
+
+### 1) Estructura del proyecto y cómo funciona cada parte
+
+```
+proyecto-nube/
+  app/
+    api/
+      routes/                # Rutas de la API (auth, videos, etc.)
+    core/
+      config.py              # Configuración vía variables de entorno
+      database.py            # Sesiones SQLAlchemy y Base
+      security.py            # Autenticación y JWT
+      storage.py             # Almacenamiento local de archivos
+      utils/video_utils.py   # Utilidades de ffmpeg para procesar video
+    models/
+      models.py              # Modelos SQLAlchemy (User, Video, Vote)
+    schemas/
+      *.py                   # Esquemas Pydantic para requests/responses
+    celery_worker.py         # Worker Celery que procesa videos en background
+    main.py                  # Aplicación FastAPI y registro de routers
+    alembic/                 # Migraciones de base de datos
+  assets/                    # Recursos (watermark, intro/outro)
+  uploads/                   # Subidas originales (montado en contenedores)
+  processed/                 # Videos procesados (expuestos por Nginx)
+  nginx/nginx.conf           # Reverse proxy hacia la API + estáticos procesados
+  docker-compose.yml         # Orquestación de servicios (DB, Redis, API, Nginx, Celery)
+  Dockerfile                 # Imagen de la API
+  prestart.sh                # Arranque de Uvicorn en desarrollo
+  requirements.txt           # Dependencias Python
+  tests/                     # Pruebas
+```
+
+- API (FastAPI): expone endpoints en `/api/*` para autenticación y gestión de videos. Usa SQLAlchemy para la DB y Pydantic para validaciones.
+- Celery: procesa los videos en segundo plano (recorte, escalado, watermark, intro/outro) usando ffmpeg.
+- Nginx: actúa como reverse proxy a la API y sirve los videos procesados desde `/processed/`.
+- Redis: broker/backend de Celery.
+- Postgres: base de datos.
+
+Flujo simplificado:
+1. El usuario sube un video (`POST /api/videos/upload`).
+2. Se guarda el archivo en `uploads/` y se crea un registro `Video` (estado `uploaded`).
+3. Se encola una tarea Celery que genera el video final en `processed/` y actualiza el estado a `done`.
+4. El cliente consulta sus videos procesados (`GET /api/videos/user`).
+
+### 2) Cómo inicializar
+
+Requisitos locales: Docker y Docker Compose.
+
+1. Crear archivo `.env` en la raíz con, por ejemplo:
+```
+DATABASE_URL=postgresql+psycopg2://app_user:app_password@postgres:5432/app_db
+REDIS_URL=redis://redis:6379/0
+SECRET_KEY=supersecret
+TESTING=false
+CELERY_EAGER=0
+```
+2. Construir e iniciar servicios:
+```bash
+docker compose up -d --build
+```
+3. (Si usas Alembic) Aplicar migraciones:
+```bash
+docker compose exec rest_api alembic upgrade head
+```
+4. Acceder a la API vía Nginx: `http://localhost:8080/docs`.
+
+Credenciales y usuarios se crean vía `/api/auth/signup` y login en `/api/auth/login` (JWT).
+
+### 3) Comandos útiles
+
+- Construir y levantar todo:
+```bash
+docker compose up -d --build
+```
+- Ver logs de la API / Nginx / Worker:
+```bash
+docker compose logs -f rest_api
+docker compose logs -f nginx
+docker compose logs -f celery_worker
+```
+- Aplicar migraciones Alembic:
+```bash
+docker compose exec rest_api alembic revision -m "mensaje" --autogenerate
+docker compose exec rest_api alembic upgrade head
+```
+- Ejecutar tests:
+```bash
+docker compose exec rest_api pytest -q
+```
+
+### 4) Errores comunes y soluciones
+
+- Error al ejecutar `prestart.sh`: "exec format error"
+  - Asegúrate de que `prestart.sh` tenga shebang `#!/bin/sh` y finales de línea LF. El `Dockerfile` limpia CRLF y aplica `chmod +x`.
+
+- Respuesta 500 al listar videos por validación Pydantic
+  - Ocurre si campos como `processed_path`/`uploaded_at` aún no existen. Los esquemas permiten `None` y el endpoint filtra `status=done`.
+
+- URLs devuelven `http://localhost:8000`
+  - Revisa Nginx: debe reenviar `Host`/`X-Forwarded-Host` y `X-Forwarded-Proto`. El backend construye URLs absolutas usando esos headers.
+
+- ffmpeg no encontrado
+  - La imagen de la API instala ffmpeg. Si falla, reconstruye: `docker compose build --no-cache rest_api`.
+
+- Migraciones inconsistentes
+  - Genera una nueva revisión con `alembic revision --autogenerate` y aplica `alembic upgrade head`.
+
+### 5) Documentación
+
+- La documentación  y las entregas se encontraran  seen la carpeta `docs/`.
+- La especificación OpenAPI está disponible en `/docs` y `/openapi.json` a través de Nginx (`http://localhost:8080`).
+
