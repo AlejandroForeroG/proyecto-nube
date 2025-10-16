@@ -47,3 +47,22 @@ class VideoDetailResponse(BaseModel):
 class DeleteVideoResponse(BaseModel):
     message: str
     video_id: str
+
+
+
+class PublicVideoResponse(BaseModel):
+    video_id: str
+    title: str
+    processed_url: str | None = None
+    votes: int
+
+
+class VoteMessageResponse(BaseModel):
+    message: str
+
+
+class RankingItem(BaseModel):
+    position: int
+    username: str
+    city: str | None = None
+    votes: int

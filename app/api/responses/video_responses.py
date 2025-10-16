@@ -5,9 +5,12 @@ from app.api.responses.common_responses import unauthorized_response
 from app.api.schemas.schemas import ErrorMessage
 from app.api.schemas.videos import (
     DeleteVideoResponse,
+    PublicVideoResponse,
+    RankingItem,
     UploadVideoResponse,
     UserVideoResponse,
     VideoDetailResponse,
+    VoteMessageResponse,
 )
 
 upload_video_responses = {
@@ -152,6 +155,101 @@ delete_video_responses = {
                 "example": {
                     "detail": "Video no encontrado",
                 }
+            }
+        },
+    },
+}
+
+
+# Public endpoints responses
+public_videos_responses = {
+    HTTPStatus.OK: {
+        "model": List[PublicVideoResponse],
+        "description": "Listado de videos públicos disponibles para votación",
+        "status_code": HTTPStatus.OK,
+        "content": {
+            "application/json": {
+                "example": [
+                    {
+                        "video_id": "abc123",
+                        "title": "Top plays",
+                        "processed_url": "https://example.com/processed/abc123.mp4",
+                        "votes": 42,
+                    }
+                ]
+            }
+        },
+    }
+}
+
+vote_video_responses = {
+    HTTPStatus.OK: {
+        "model": VoteMessageResponse,
+        "description": "Voto registrado exitosamente.",
+        "status_code": HTTPStatus.OK,
+        "content": {
+            "application/json": {
+                "example": {"message": "Voto registrado exitosamente."}
+            }
+        },
+    },
+    HTTPStatus.BAD_REQUEST: {
+        "model": ErrorMessage,
+        "description": "Ya has votado por este video.",
+        "status_code": HTTPStatus.BAD_REQUEST,
+        "content": {
+            "application/json": {"example": {"detail": "Ya has votado por este video."}}
+        },
+    },
+    HTTPStatus.UNAUTHORIZED: {
+        "model": ErrorMessage,
+        "description": "Falta de autenticación.",
+        "status_code": HTTPStatus.UNAUTHORIZED,
+        "content": {
+            "application/json": {"example": {"detail": "Falta de autenticación."}}
+        },
+    },
+    HTTPStatus.NOT_FOUND: {
+        "model": ErrorMessage,
+        "description": "Video no encontrado.",
+        "status_code": HTTPStatus.NOT_FOUND,
+        "content": {
+            "application/json": {"example": {"detail": "Video no encontrado."}}
+        },
+    },
+}
+
+rankings_responses = {
+    HTTPStatus.OK: {
+        "model": List[RankingItem],
+        "description": "Lista de rankings obtenida.",
+        "status_code": HTTPStatus.OK,
+        "content": {
+            "application/json": {
+                "example": [
+                    {
+                        "position": 1,
+                        "username": "superplayer",
+                        "city": "Bogotá",
+                        "votes": 1530,
+                    },
+                    {
+                        "position": 2,
+                        "username": "nextstar",
+                        "city": "Bogotá",
+                        "votes": 1495,
+                    },
+                ]
+            }
+        },
+    },
+    HTTPStatus.BAD_REQUEST: {
+        "model": ErrorMessage,
+        "description": "Parámetro inválido en la consulta.",
+        "status_code": HTTPStatus.BAD_REQUEST,
+        "content": {
+            "application/json": {
+                "example": {"detail": "Parámetro inválido en la consulta."}
             }
         },
     },

@@ -108,9 +108,7 @@ async def upload_video(
     }
 
 
-@router.get(
-    "/user", responses=user_videos_responses, response_model=List[UserVideoResponse]
-)
+@router.get("", responses=user_videos_responses, response_model=List[UserVideoResponse])
 async def get_user_videos(
     request: Request,
     db: Session = Depends(get_db),

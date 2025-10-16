@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import auth, videos
+
+from app.api.routes import auth, public, videos
+
 app = FastAPI(title="API", description="1.0.0")
 
 app.add_middleware(
@@ -13,6 +15,9 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(videos.router, prefix="/api/videos", tags=["Videos"])
+app.include_router(public.router, prefix="/api/public", tags=["Public"])
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
