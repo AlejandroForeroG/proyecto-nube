@@ -1,0 +1,130 @@
+{
+  "info": {
+    "name": "Videos (Protected)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get('token')) {",
+          "  pm.environment.set('email', `user_${Date.now()}@example.com`);",
+          "  pm.environment.set('password', 'P@ssw0rd123!');",
+          "  const signupReq = {",
+          "    url: pm.environment.get('base_url') + '/auth/signup',",
+          "    method: 'POST',",
+          "    header: { 'Content-Type': 'application/json' },",
+          "    body: { mode: 'raw', raw: JSON.stringify({",
+          "      email: pm.environment.get('email'),",
+          "      password1: pm.environment.get('password'),",
+          "      password2: pm.environment.get('password'),",
+          "      first_name: 'Test', last_name: 'User', city: 'Bogotá', country: 'CO'",
+          "    }) }",
+          "  };",
+          "  pm.sendRequest(signupReq, function (err, res) {",
+          "    const loginReq = {",
+          "      url: pm.environment.get('base_url') + '/auth/login',",
+          "      method: 'POST',",
+          "      header: { 'Content-Type': 'application/json' },",
+          "      body: { mode: 'raw', raw: JSON.stringify({",
+          "        email: pm.environment.get('email'),",
+          "        password: pm.environment.get('password')",
+          "      }) }",
+          "    };",
+          "    pm.sendRequest(loginReq, function (err2, res2) {",
+          "      try {",
+          "        const d = res2.json();",
+          "        pm.environment.set('token', d.access_token);",
+          "      } catch (e) {}",
+          "      if (typeof done === 'function') { done(); }",
+          "    });",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Upload video (valid)",
+      "event": [
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('status 201', function(){ pm.expect(pm.response.code).to.eql(201); });",
+          "var data = pm.response.json();",
+          "pm.test('has task_id', function(){ pm.expect(data).to.have.property('task_id'); });"
+        ] } }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": "{{base_url}}/videos/upload",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "video_file", "type": "file", "src": "{{upload_file_path}}" },
+            { "key": "title", "type": "text", "value": "My Skills" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Upload video (invalid type → 400)",
+      "event": [
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('status 400', function(){ pm.expect(pm.response.code).to.eql(400); });"
+        ] } }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": "{{base_url}}/videos/upload",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "video_file", "type": "file", "src": "{{invalid_file_path}}" },
+            { "key": "title", "type": "text", "value": "Bad File" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "List user videos (processed)",
+      "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('status 200', function(){ pm.expect(pm.response.code).to.eql(200); });",
+        "var data = pm.response.json();",
+        "pm.test('is array', function(){ pm.expect(Array.isArray(data)).to.be.true; });"
+      ] } } ],
+      "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ], "url": "{{base_url}}/videos" }
+    },
+    {
+      "name": "Get video detail (random id → 404)",
+      "event": [
+        { "listen": "prerequest", "script": { "type":"text/javascript", "exec": [
+          "function uuid(){return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16);});}",
+          "pm.environment.set('rand_video_id3', uuid());"
+        ] } },
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('status 404', function(){ pm.expect(pm.response.code).to.eql(404); });"
+        ] } }
+      ],
+      "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ], "url": "{{base_url}}/videos/{{rand_video_id3}}" }
+    },
+    {
+      "name": "Delete video (random id → 404)",
+      "event": [
+        { "listen": "prerequest", "script": { "type":"text/javascript", "exec": [
+          "function uuid(){return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16);});}",
+          "pm.environment.set('rand_video_id4', uuid());"
+        ] } },
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('status 404', function(){ pm.expect(pm.response.code).to.eql(404); });"
+        ] } }
+      ],
+      "request": { "method": "DELETE", "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ], "url": "{{base_url}}/videos/{{rand_video_id4}}" }
+    }
+  ]
+}
+
+

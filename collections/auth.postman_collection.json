@@ -1,0 +1,131 @@
+{
+  "info": {
+    "name": "Auth",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Signup",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.set('email', `user_${Date.now()}@example.com`);",
+              "pm.environment.set('password', 'P@ssw0rd123!');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201 created', function(){ pm.expect(pm.response.code).to.be.oneOf([201]); });",
+              "var signupData = {}; try { signupData = pm.response.json(); } catch(e) {}",
+              "pm.test('has email', function(){ pm.expect(signupData).to.have.property('email'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{base_url}}/auth/signup",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password1\": \"{{password}}\",\n  \"password2\": \"{{password}}\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\",\n  \"city\": \"Bogotá\",\n  \"country\": \"CO\"\n}",
+          "options": { "raw": { "language": "json" } }
+        }
+      }
+    },
+    {
+      "name": "Signup duplicate (expects 400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 400 duplicate', function(){ pm.expect(pm.response.code).to.eql(400); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{base_url}}/auth/signup",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password1\": \"{{password}}\",\n  \"password2\": \"{{password}}\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\",\n  \"city\": \"Bogotá\",\n  \"country\": \"CO\"\n}",
+          "options": { "raw": { "language": "json" } }
+        }
+      }
+    },
+    {
+      "name": "Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "const loginData = pm.response.json();",
+              "pm.environment.set('token', loginData.access_token);",
+              "pm.test('bearer token', function(){ pm.expect(loginData.token_type).to.eql('bearer'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{base_url}}/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        }
+      }
+    },
+    {
+      "name": "Login invalid (expects 401)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {"type":"text/javascript","exec":["pm.environment.set('bad_email', `invalid_${Date.now()}@example.com`);"]}
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 401', function(){ pm.expect(pm.response.code).to.eql(401); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "url": "{{base_url}}/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{bad_email}}\",\n  \"password\": \"bad\"\n}",
+          "options": { "raw": { "language": "json" } }
+        }
+      }
+    }
+  ]
+}
+
+

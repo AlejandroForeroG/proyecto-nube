@@ -97,8 +97,21 @@ Esta entrega compila los artefactos iniciales de arquitectura, diseño y operaci
 ## 2. Documentación de la API (Postman)
 
 - Endpoints principales (autenticación, carga de videos, listado de videos del usuario, estado de salud).
-- Colección de Postman: [Descargar](../../postman/semana_1_collection.json)
-- Evidencia de ejecución (capturas): [Ver carpeta](../../imagenes/semana_1/postman/)
+- Colecciones de Postman (JSON, por dominio) en `collections/`:
+  - `collections/auth.postman_collection.json`
+  - `collections/public.postman_collection.json`
+  - `collections/videos.postman_collection.json`
+- Entorno: `collections/postman_environment.json` con variables: `base_url`, `deploy_url`, `root_url`, `token`, `email`, `password`, `upload_file_path`, `invalid_file_path`.
+- Ejecución automatizada (Newman dentro de `rest_api`):
+  - Previo: `docker compose up -d --build`
+  - Ejecutar todas las colecciones (PowerShell):
+    ```powershell
+    ForEach ($c in @('auth','public','videos')) { docker compose exec rest_api newman run /my-app/collections/$c.postman_collection.json -e /my-app/collections/postman_environment.json --reporters cli }
+    ```
+  - Ejecutar una colección:
+    ```powershell
+    docker compose exec rest_api newman run /my-app/collections/public.postman_collection.json -e /my-app/collections/postman_environment.json --reporters cli
+    ```
 
 ## 3. Diagrama de componentes
 

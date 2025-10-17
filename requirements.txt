@@ -21,4 +21,4 @@ pytest-asyncio
 factory_boy
 faker
 httpx
-newman
+pysonar

@@ -1,0 +1,98 @@
+{
+  "info": {
+    "name": "Public",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function(){ pm.expect(pm.response.code).to.eql(200); });",
+              "var data = pm.response.json();",
+              "pm.test('status ok', function(){ pm.expect(data.status).to.eql('ok'); });"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "url": "{{root_url}}/health" }
+    },
+    {
+      "name": "List public videos",
+      "event": [
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('status 200', function(){ pm.expect(pm.response.code).to.eql(200); });",
+          "var data = pm.response.json();",
+          "pm.test('is array', function(){ pm.expect(Array.isArray(data)).to.be.true; });"
+        ] } }
+      ],
+      "request": { "method": "GET", "url": "{{base_url}}/public/videos" }
+    },
+    {
+      "name": "Vote requires auth (expects 401)",
+      "event": [
+        { "listen": "prerequest", "script": { "type":"text/javascript", "exec": [
+          "function uuid(){return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16);});}",
+          "pm.environment.set('rand_video_id', uuid());"
+        ] } },
+        { "listen": "test", "script": { "type":"text/javascript", "exec": [
+          "pm.test('status 401', function(){ pm.expect(pm.response.code).to.eql(401); });"
+        ] } }
+      ],
+      "request": { "method": "POST", "url": "{{base_url}}/public/videos/{{rand_video_id}}/vote" }
+    },
+    {
+      "name": "Vote non-existing id (expects 404 with token)",
+      "event": [
+        { "listen": "prerequest", "script": { "type":"text/javascript", "exec": [
+          "function uuid(){return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=='x'?r:(r&0x3|0x8);return v.toString(16);});}",
+          "pm.environment.set('rand_video_id2', uuid());"
+        ] } },
+        { "listen": "test", "script": { "type":"text/javascript", "exec": [
+          "pm.test('status 401', function(){ pm.expect(pm.response.code).to.eql(401); });"
+        ] } }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": "{{base_url}}/public/videos/{{rand_video_id2}}/vote"
+      }
+    },
+    {
+      "name": "Rankings",
+      "event": [
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('status 200', function(){ pm.expect(pm.response.code).to.eql(200); });",
+          "var data = pm.response.json();",
+          "pm.test('is array', function(){ pm.expect(Array.isArray(data)).to.be.true; });"
+        ] } }
+      ],
+      "request": { "method": "GET", "url": "{{base_url}}/public/rankings" }
+    },
+    {
+      "name": "Rankings by city",
+      "event": [
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('status 200', function(){ pm.expect(pm.response.code).to.eql(200); });",
+          "var data = pm.response.json();",
+          "pm.test('is array', function(){ pm.expect(Array.isArray(data)).to.be.true; });"
+        ] } }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/public/rankings?city=Bogotá",
+          "host": ["{{base_url}}"],
+          "path": ["public","rankings"],
+          "query": [ { "key": "city", "value": "Bogotá" } ]
+        }
+      }
+    }
+  ]
+}
+
+

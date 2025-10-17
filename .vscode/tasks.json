@@ -12,6 +12,24 @@
             "type": "promptString",
             "description": "Mensaje de la revisión",
             "default": "Add new table"
+          },
+          {
+            "id": "newmanCollection",
+            "type": "pickString",
+            "description": "Colección Postman a ejecutar",
+            "options": ["auth", "public", "videos"],
+            "default": "public"
+          },
+          {
+            "id": "sonarHost",
+            "type": "promptString",
+            "description": "URL de SonarQube (host)",
+            "default": "http://sonarqube.localhost:8080"
+          },
+          {
+            "id": "sonarToken",
+            "type": "promptString",
+            "description": "Token de autenticación SonarQube"
           }
         ],
     "tasks": [
@@ -55,6 +73,30 @@
             "label": "DB: downgrade -1",
             "type": "shell",
             "command": "docker compose run --rm rest_api alembic -c app/alembic.ini downgrade -1",
+            "problemMatcher": []
+        },
+        {
+            "label": "Newman: All collections",
+            "type": "shell",
+            "command": "ForEach ($c in @('auth','public','videos')) { docker compose exec rest_api newman run /my-app/collections/$c.postman_collection.json -e /my-app/collections/postman_environment.json --reporters cli; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }",
+            "problemMatcher": []
+        },
+        {
+            "label": "Newman: One collection",
+            "type": "shell",
+            "command": "docker compose exec rest_api newman run /my-app/collections/${input:newmanCollection}.postman_collection.json -e /my-app/collections/postman_environment.json --reporters cli",
+            "problemMatcher": []
+        },
+        {
+            "label": "Test (coverage)",
+            "type": "shell",
+            "command": "docker compose run --rm rest_api pytest --cov=app --cov-report xml:/my-app/tests/coverage.xml",
+            "problemMatcher": []
+        },
+        {
+            "label": "Sonar Scan",
+            "type": "shell",
+            "command": "docker run --rm -e SONAR_HOST_URL=\"${input:sonarHost}\" -e SONAR_LOGIN=\"${input:sonarToken}\" -v \"${workspaceFolder}:/usr/src\" sonarsource/sonar-scanner-cli",
             "problemMatcher": []
         }
     ]
