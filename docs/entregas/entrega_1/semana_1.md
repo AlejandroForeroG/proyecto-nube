@@ -1,10 +1,68 @@
 
-# Entrega Semana 1
+# Entrega1
 
-Esta entrega compila los artefactos iniciales de arquitectura, diseño y operación del proyecto.
-# Test implementados
-## Test unitarioss
-### Autenticación
+Esta entrega compila los requerimientos solicitados 
+
+
+## Entregas
+- Video sustentación: [Ver video](https://drive.google.com/file/d/1E3vjyf7dd5FIm3wkKZc592LTR_fbfzVh/view?usp=sharing)
+
+- La especificación OpenAPI de la API está disponible un avez inicialice el proyecto en `/docs` del servicio Nginx (por defecto http://localhost:8080/docs).
+
+
+
+## Arquitectura
+### 1. Modelo de datos
+- Diagrama: [Ver imagen](https://drive.google.com/file/d/1E3vjyf7dd5FIm3wkKZc592LTR_fbfzVh/view?usp=sharing)
+
+
+
+### 2. Diagrama de componentes
+
+- Diagrama: [Ver imagen](https://drive.google.com/file/d/1oWUE6Pb6KDLkE9c3dGdcvcxo_4quyLJJ/view?usp=sharing)
+
+### 3. Diagrama de flujo de procesos
+
+- Diagrama: [Ver imagen](https://drive.google.com/file/d/1II6ekzOkFpi0cM94-Xo0sNU860MXSn5T/view?usp=sharing)
+
+### 4. Despliegue e infraestructura
+- Diagrama de despliegue: [Ver imagen](https://drive.google.com/file/d/1qvCAnbd3ss0VMz3zkSlJ5kmZ7Plf7CAA/view?usp=sharing)
+- Guía reproducible: ver README (sección "Cómo inicializar") y script de despliegue.
+
+### 4. Reporte de análisis de SonarQube
+
+- Resultado del último análisis sobre `main`:
+  - Bugs: <indicar>
+  - Vulnerabilidades: <indicar>
+  - Code Smells: <indicar>
+  - Cobertura de pruebas: <indicar>%
+  - Duplicación de código: <indicar>%
+  - Quality Gate: Aprobado/Rechazado
+- Evidencia: [Captura del dashboard](../../imagenes/semana_1/sonarqube.png)
+
+---
+
+## Test implementados
+### Documentación de la API (Postman)
+
+- Endpoints principales (autenticación, carga de videos, listado de videos del usuario, estado de salud).
+- Colecciones de Postman (JSON, por dominio) en `collections/`:
+  - `collections/auth.postman_collection.json`
+  - `collections/public.postman_collection.json`
+  - `collections/videos.postman_collection.json`
+- Entorno: `collections/postman_environment.json` con variables: `base_url`, `deploy_url`, `root_url`, `token`, `email`, `password`, `upload_file_path`, `invalid_file_path`.
+- Ejecución automatizada (Newman dentro de `rest_api`):
+  - Previo: `docker compose up -d --build`
+  - Ejecutar todas las colecciones (PowerShell):
+    ```powershell
+    ForEach ($c in @('auth','public','videos')) { docker compose exec rest_api newman run /my-app/collections/$c.postman_collection.json -e /my-app/collections/postman_environment.json --reporters cli }
+    ```
+  - Ejecutar una colección:
+    ```powershell
+    docker compose exec rest_api newman run /my-app/collections/public.postman_collection.json -e /my-app/collections/postman_environment.json --reporters cli
+    ```
+### Test unitarios
+#### Autenticación
 
 - **HU: Signup** — `POST /api/auth/signup`  
   Tests:  
@@ -22,7 +80,7 @@ Esta entrega compila los artefactos iniciales de arquitectura, diseño y operaci
 
 ---
 
-### Videos (privados)
+#### Videos (privados)
 
 - **HU: Subir video** — `POST /api/videos/upload`  
   Tests:  
@@ -59,7 +117,7 @@ Esta entrega compila los artefactos iniciales de arquitectura, diseño y operaci
 
 ---
 
-### Público
+#### Público
 
 - **HU: Listado público** — `GET /api/public/videos`  
   Tests:  
@@ -82,66 +140,13 @@ Esta entrega compila los artefactos iniciales de arquitectura, diseño y operaci
 
 ---
 
-### Salud
+## Salud
 
 - **HU: Healthcheck** — `GET /health`  
   Tests:  
     - `tests/test_health.py::test_health` (200, body `{"status":"ok"}`)
 
-# Arquitectura
-## 1. Modelo de datos (ERD)
 
-- Descripción: Estructura de entidades principales (User, Video, Vote) y sus relaciones.
-- Diagrama ERD: [Ver imagen](../../imagenes/semana_1/erd.png)
-
-## 2. Documentación de la API (Postman)
-
-- Endpoints principales (autenticación, carga de videos, listado de videos del usuario, estado de salud).
-- Colecciones de Postman (JSON, por dominio) en `collections/`:
-  - `collections/auth.postman_collection.json`
-  - `collections/public.postman_collection.json`
-  - `collections/videos.postman_collection.json`
-- Entorno: `collections/postman_environment.json` con variables: `base_url`, `deploy_url`, `root_url`, `token`, `email`, `password`, `upload_file_path`, `invalid_file_path`.
-- Ejecución automatizada (Newman dentro de `rest_api`):
-  - Previo: `docker compose up -d --build`
-  - Ejecutar todas las colecciones (PowerShell):
-    ```powershell
-    ForEach ($c in @('auth','public','videos')) { docker compose exec rest_api newman run /my-app/collections/$c.postman_collection.json -e /my-app/collections/postman_environment.json --reporters cli }
-    ```
-  - Ejecutar una colección:
-    ```powershell
-    docker compose exec rest_api newman run /my-app/collections/public.postman_collection.json -e /my-app/collections/postman_environment.json --reporters cli
-    ```
-
-## 3. Diagrama de componentes
-
-- Componentes: Backend (FastAPI), Worker (Celery), Broker (Redis), Base de datos (Postgres), Reverse proxy (Nginx).
-- Diagrama: [Ver imagen](../../imagenes/semana_1/componentes.png)
-
-## 4. Diagrama de flujo de procesos
-
-- Etapas: Carga -> Almacenamiento -> Encolamiento -> Procesamiento (ffmpeg) -> Publicación -> Consulta.
-- Diagrama: [Ver imagen](../../imagenes/semana_1/flujo_procesos.png)
-
-## 5. Despliegue e infraestructura
-
-- Infraestructura: Contenedores Docker orquestados con Docker Compose.
-- Descripción de servicios activos: Nginx, API, Celery Worker, Redis, Postgres.
-- Diagrama de despliegue: [Ver imagen](../../imagenes/semana_1/despliegue.png)
-- Guía reproducible: ver README (sección "Cómo inicializar") y script de despliegue.
-
-## 6. Reporte de análisis de SonarQube
-
-- Resultado del último análisis sobre `main`:
-  - Bugs: <indicar>
-  - Vulnerabilidades: <indicar>
-  - Code Smells: <indicar>
-  - Cobertura de pruebas: <indicar>%
-  - Duplicación de código: <indicar>%
-  - Quality Gate: Aprobado/Rechazado
-- Evidencia: [Captura del dashboard](../../imagenes/semana_1/sonarqube.png)
-
----
 
 TODO:
 - Completar los enlaces a imágenes y artefactos en `docs/imagenes/semana_1/` y `docs/postman/`.

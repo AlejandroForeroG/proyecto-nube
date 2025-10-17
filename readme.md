@@ -5,6 +5,9 @@
 - Juan Sebastián Sánchez Tabares
 - Yesid Arley Marin Rivera
 
+### Entregas
+- Semana 1: [Documento de la entrega](./docs/entregas/semana_1/semana_1.md)
+## Documentación 
 ### 1) Estructura del proyecto y cómo funciona cada parte
 
 ```
