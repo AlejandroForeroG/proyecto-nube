@@ -22,3 +22,4 @@ factory_boy
 faker
 httpx
 pysonar
+prometheus-fastapi-instrumentator==7.0.0

@@ -1,0 +1,32 @@
+{
+  "info": {
+    "name": "Public (HUS minimal)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "List public videos",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/public/videos"
+      }
+    },
+    {
+      "name": "Vote public video",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": "{{base_url}}/public/videos/{{video_id}}/vote"
+      }
+    },
+    {
+      "name": "Rankings",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/public/rankings"
+      }
+    }
+  ]
+}
+
+

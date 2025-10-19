@@ -22,6 +22,7 @@ class Video(BaseModel):
 class UploadVideoResponse(BaseModel):
     message: str
     task_id: str
+    video_id: str
 
 
 class UserVideoResponse(BaseModel):
@@ -47,7 +48,6 @@ class VideoDetailResponse(BaseModel):
 class DeleteVideoResponse(BaseModel):
     message: str
     video_id: str
-
 
 
 class PublicVideoResponse(BaseModel):

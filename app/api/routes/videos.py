@@ -105,6 +105,73 @@ async def upload_video(
     return {
         "message": "Video subido correctamente. Procesamiento en progeso.",
         "task_id": task.id,
+        "video_id": v.video_id,
+    }
+
+
+@router.post(
+    "/upload-mock",
+    status_code=HTTPStatus.ACCEPTED,
+    responses=upload_video_responses,
+    response_model=UploadVideoResponse,
+)
+async def upload_video_mock(
+    request: Request,
+    video_file: UploadFile = File(...),
+    title: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    if not video_file.content_type or not video_file.content_type.startswith("video/"):
+        print(video_file.content_type)
+        raise HTTPException(
+            HTTPStatus.BAD_REQUEST, "Tipo de archivo invalido, debe ser un video"
+        )
+
+    video_uuid = str(uuid.uuid4())
+    ext = (Path(video_file.filename).suffix or ".mp4").lower()
+    if ext not in ALLOWED_EXTS:
+        print(ext)
+        raise HTTPException(
+            HTTPStatus.BAD_REQUEST, f"Tipo de archivo no soportado {ext}"
+        )
+
+    original_rel = f"{video_uuid}_original{ext}"
+    storage = LocalStorage(base_dir=settings.UPLOAD_PATH)
+    try:
+        saved_path = await storage.save_async(
+            video_file,
+            original_rel,
+            chunk_size=CHUNK_SIZE,
+            max_size=settings.MAX_FILE_SIZE,
+        )
+    except ValueError as e:
+        print(e)
+        raise HTTPException(
+            HTTPStatus.BAD_REQUEST, "El archivo excede el tamaño limite"
+        )
+
+    current_user = request.state.user
+    v = Video(
+        video_id=video_uuid,
+        title=title,
+        status="uploaded",
+        original_path=saved_path,
+        user_id=current_user.id,
+        uploaded_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
+    db.add(v)
+    db.commit()
+    db.refresh(v)
+
+    mock_task_id = f"mock-{video_uuid}"
+    v.task_id = mock_task_id
+    db.commit()
+
+    return {
+        "message": "Video subido correctamente (mock mode - sin procesamiento).",
+        "task_id": mock_task_id,
+        "video_id": v.video_id,
     }
 
 

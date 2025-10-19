@@ -24,6 +24,7 @@ upload_video_responses = {
                 "example": {
                     "message": "Video subido correctamente. Procesamiento en progeso.",
                     "task_id": "1234567890",
+                    "video_id": "a1b2c3d4",
                 }
             }
         },

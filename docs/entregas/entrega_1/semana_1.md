@@ -32,13 +32,7 @@ Esta entrega compila los requerimientos solicitados
 ### 4. Reporte de análisis de SonarQube
 
 - Resultado del último análisis sobre `main`:
-  - Bugs: <indicar>
-  - Vulnerabilidades: <indicar>
-  - Code Smells: <indicar>
-  - Cobertura de pruebas: <indicar>%
-  - Duplicación de código: <indicar>%
-  - Quality Gate: Aprobado/Rechazado
-- Evidencia: [Captura del dashboard](../../imagenes/semana_1/sonarqube.png)
+- Evidencia: [Captura del dashboard](https://drive.google.com/file/d/1CWt2H1FEXjfCXTFyLwGiEQnKqqg_hLE4/view?usp=sharing)
 
 ---
 

@@ -1,0 +1,49 @@
+{
+  "info": {
+    "name": "Videos (HUS minimal)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Upload video",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": "{{base_url}}/videos/upload",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "video_file", "type": "file", "src": "{{upload_file_path}}" },
+            { "key": "title", "type": "text", "value": "My Skills" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "List my videos",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": "{{base_url}}/videos"
+      }
+    },
+    {
+      "name": "Get video detail",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": "{{base_url}}/videos/{{video_id}}"
+      }
+    },
+    {
+      "name": "Delete my video",
+      "request": {
+        "method": "DELETE",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": "{{base_url}}/videos/{{video_id}}"
+      }
+    }
+  ]
+}
+
+

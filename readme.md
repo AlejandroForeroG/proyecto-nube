@@ -119,3 +119,79 @@ docker compose exec rest_api pytest -q
 - La documentación  y las entregas se encontraran  seen la carpeta `docs/`.
 - La especificación OpenAPI está disponible en `/docs` y `/openapi.json` a través de Nginx (`http://localhost:8080`).
 
+### 6) Load Testing (Pruebas de Carga)
+
+El proyecto incluye una infraestructura completa para pruebas de carga y análisis de capacidad.
+
+#### Componentes de Monitoreo
+
+El sistema incluye:
+- **Prometheus** (`http://localhost:9090`): Recolección de métricas
+- **Grafana** (`http://localhost:3001`): Visualización de métricas (admin/admin)
+- **Locust**: Generación de carga para pruebas web
+- **Script de inyección**: Para pruebas directas de workers
+
+#### Inicio Rápido
+
+1. **Levantar infraestructura con monitoreo:**
+```bash
+docker compose up -d
+```
+
+2. **Instalar herramientas de pruebas:**
+```bash
+cd load_tests
+pip install -r requirements.txt
+```
+
+3. **Ejecutar prueba smoke (validación rápida):**
+```bash
+locust -f locustfile_web.py --users 5 --spawn-rate 5 --run-time 1m \
+  --host http://localhost:8080 --headless
+```
+
+4. **Ver métricas en tiempo real:**
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3001 (Dashboard: "FastAPI Load Testing Metrics").
+  Si el dashboard no aparece, copia el archivo `grafana/dashboards/api_metrics.json` a la ruta `/var/lib/grafana/dashboards/` dentro del contenedor de Grafana y reinicia el servicio.
+
+#### Escenarios de Prueba
+
+**Escenario 1: Capacidad de Capa Web**
+- Objetivo: Determinar usuarios concurrentes máximos
+- Endpoint: `/api/videos/upload-mock` (sin procesamiento worker)
+- SLOs: p95 ≤ 1s, errores ≤ 5%
+
+```bash
+locust -f locustfile_web.py --users 100 --spawn-rate 0.55 --run-time 8m \
+  --host http://localhost:8080 --headless --html reports/ramp_100users.html
+```
+
+**Escenario 2: Throughput de Workers**
+- Objetivo: Medir videos/min procesados
+- Método: Inyección directa a cola Redis
+- Variables: Tamaño de video (50MB, 100MB, 200MB) y concurrencia (1, 2, 4 workers)
+
+```bash
+python inject_worker_tasks.py --count 100 --size 50MB --mode burst --monitor
+```
+
+#### Documentación Completa
+
+- **Guía de Load Testing**: [load_tests/README.md](load_tests/README.md)
+- **Análisis de Capacidad**: [docs/entregas/entrega_1/analisis_capacidad.md](docs/entregas/entrega_1/analisis_capacidad.md)
+
+#### Ajustar Concurrencia de Workers
+
+Para pruebas de Escenario 2, modificar en `docker-compose.yml`:
+
+```yaml
+celery_worker:
+  command: celery -A app.celery_worker.celery_app worker --loglevel=info --concurrency=4
+```
+
+Luego reiniciar:
+```bash
+docker compose restart celery_worker
+```
+
