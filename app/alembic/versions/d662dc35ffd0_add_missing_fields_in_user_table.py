@@ -31,17 +31,7 @@ def upgrade():
     op.alter_column('users', 'first_name', nullable=False, existing_type=sa.String(length=255))
     op.alter_column('users', 'last_name', nullable=False, existing_type=sa.String(length=255))
 
-    op.add_column('users', sa.Column('city', sa.String(length=255), nullable=True))
-    op.add_column('users', sa.Column('country', sa.String(length=255), nullable=True))
-
-    op.execute("UPDATE users SET city = '' WHERE city IS NULL")
-    op.execute("UPDATE users SET country = '' WHERE country IS NULL")
-
-    op.alter_column('users', 'city', nullable=False, existing_type=sa.String(length=255))
-    op.alter_column('users', 'country', nullable=False, existing_type=sa.String(length=255))
-
 def downgrade():
     op.drop_column('users', 'last_name')
     op.drop_column('users', 'first_name')
-    op.drop_column('users', 'city')
-    op.drop_column('users', 'country')
+    op.drop_column('users', 'last_name')
