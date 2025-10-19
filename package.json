@@ -1,0 +1,13 @@
+{
+  "name": "load_tests",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "postman:auth": "newman run collections/auth.postman_collection.json -e collections/postman_environment.json --reporters cli",
+    "postman:videos": "newman run collections/videos.postman_collection.json -e collections/postman_environment.json --reporters cli",
+    "postman:public": "newman run collections/public.postman_collection.json -e collections/postman_environment.json --reporters cli",
+    "postman:all": "npm run postman:auth && npm run postman:videos && npm run postman:public",
+    "postman:run": "newman run $COLLECTION -e collections/postman_environment.json --reporters cli"
+  }
+}

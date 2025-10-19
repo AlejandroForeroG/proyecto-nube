@@ -10,3 +10,5 @@ __pycache__/
 *.pyzw
 *.pyz
 *.mp4
+node_modules/
+package-lock.json
