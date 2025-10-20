@@ -311,333 +311,11 @@ sustained: https://drive.google.com/file/d/1a80OycXHq1yiyX88kKR637UdY6iStT67/vie
 
 ## Escenario 2: Throughput de Worker
 
-### Ejecución de Pruebas
+Para esta primera iteracion no se lograorn completar estas pruebas
 
-#### Resultados Matriz de Configuración
+## Información de Pruebas
 
-##### Prueba 1: Videos 50MB, 1 Worker
-
-**Comando:**
-```bash
-python inject_worker_tasks.py --count 100 --size 50MB --mode burst --monitor
-```
-
-**Resultados:**
-
-| Métrica               | Valor     |
-|-----------------------|-----------|
-| Tareas Totales        | 100       |
-| Tiempo Total          | [TBD] min |
-| Throughput            | [TBD] vid/min |
-| Tiempo promedio proc. | [TBD] s   |
-| Tasa de éxito         | [TBD]%    |
-| Cola pico             | [TBD]     |
-
-**Observaciones:**
-- [Procesamiento secuencial, sin paralelismo.]
-- [CPU: 85%, I/O wait: 15%]
-
----
-
-##### Prueba 2: 50MB, 2 Workers
-
-[Repetir estructura]
-
----
-
-##### Prueba 3: 50MB, 4 Workers
-
-[Repetir estructura]
-
----
-
-##### Prueba 4-6: 100MB (1, 2, 4 workers)
-
-[Repetir estructura por configuración]
-
----
-
-##### Prueba 7-9: 200MB (Sostenido)
-
-**Prueba 7: 200MB, 1 Worker, Sostenido**
-
-**Comando:**
-```bash
-python inject_worker_tasks.py --count 20 --size 200MB --mode sustained --rate 5 --monitor
-```
-
-**Resultados:**
-
-| Métrica        | Valor  |
-|----------------|--------|
-| Tasa objetivo  | 5 tareas/min |
-| Throughput real| [TBD] vid/min|
-| Crecimiento cola| [TBD] (objetivo ≈ 0) |
-| Tiempo promedio | [TBD] s/vid  |
-| Tasa éxito     | [TBD]% |
-
-**Comportamiento de cola:**
-- Inicial: [TBD]
-- 2 min: [TBD]
-- 5 min: [TBD]
-- Final: [TBD]
-- **Tendencia:** [Creciendo/Estable/Disminuyendo]
-
----
-
-### Resumen Throughput - Escenario 2
-
-#### Tabla de Capacidad
-
-| Tamaño | Workers | Modo     | Throughput (vid/min) | Tiempo prom (s) | ¿Cola estable? |
-|--------|---------|----------|----------------------|-----------------|---------------|
-| 50MB   | 1       | Burst    | [TBD]                | [TBD]           | [Sí/No]       |
-| 50MB   | 2       | Burst    | [TBD]                | [TBD]           | [Sí/No]       |
-| 50MB   | 4       | Burst    | [TBD]                | [TBD]           | [Sí/No]       |
-| 100MB  | 1       | Burst    | [TBD]                | [TBD]           | [Sí/No]       |
-| 100MB  | 2       | Burst    | [TBD]                | [TBD]           | [Sí/No]       |
-| 100MB  | 4       | Burst    | [TBD]                | [TBD]           | [Sí/No]       |
-| 200MB  | 1       | Sostenido| [TBD]                | [TBD]           | [Sí/No]       |
-| 200MB  | 2       | Sostenido| [TBD]                | [TBD]           | [Sí/No]       |
-| 200MB  | 4       | Sostenido| [TBD]                | [TBD]           | [Sí/No]       |
-
-#### Configuración Óptima
-
-**Setup Recomendado:**
-- **Concurrencia:** [TBD] workers
-- **Throughput Esperado:** [TBD] videos/min
-- **Tiempo promedio:** [TBD] s/video
-- **Justificación:** [Ej: Mejor balance entre throughput y uso de recursos]
-
-#### Escalabilidad
-
-**Ley de Amdahl:**
-
-```
-Speedup = 1 / ((1 - P) + P/N)
-
-P = fracción paralelizable
-N = número de workers
-```
-
-**Escalamiento observado:**
-
-| Workers | Speedup teórico | Observado | Eficiencia |
-|---------|----------------|-----------|------------|
-|   1     | 1.0x           | 1.0x      | 100%       |
-|   2     | 2.0x           | [TBD]x    | [TBD]%     |
-|   4     | 4.0x           | [TBD]x    | [TBD]%     |
-
-**Cuello de botella:** [Ej: I/O disco saturado a 4 workers]
-
----
-
-## Análisis de Cuellos de Botella
-
-### Escenario 1: Bottlenecks Capa Web
-
-#### Cuello principal
-
-**Componente:** [Ej: CPU FastAPI]
-
-**Evidencia:**
-- Con [X] usuarios, CPU llegó a [Y]%
-- Latencia p95 subió de [A]ms a [B]ms
-- Salida docker stats: [dato relevante]
-
-**Impacto:**
-- Capacidad máxima limitada a [X] usuarios
-- Sobre este punto se violan SLOs
-
-**Estrategias de mitigación:**
-1. [Ej.: Aumentar workers Uvicorn]
-2. [Ej.: Optimizar queries, agregar índices]
-3. [Ej.: Mejorar pool conexiones]
-4. [Ej.: Escalar horizontal con load balancer]
-
----
-
-#### Bottlenecks secundarios
-
-**Componente:** [Ej: Pool de Conexión DB]
-
-**Evidencia:**
-- Pool agotado con [X] conexiones.
-- Logs "too many connections".
-
-**Mitigación:**
-- Aumentar `SQLALCHEMY_POOL_SIZE`
-- Uso adecuado de pooling en la aplicación
-
----
-
-### Escenario 2: Bottlenecks Worker
-
-#### Cuello principal
-
-**Componente:** [Ej: I/O disco temporal de ffmpeg]
-
-**Evidencia:**
-- I/O wait alto: [X]%
-- Tiempo de procesamiento crece no lineal vs concurrencia
-- iostat: [dato relevante]
-
-**Impacto:**
-- Retorno decreciente sobre [N] workers
-- Throughput se estabiliza en [X] videos/min
-
-**Estrategias de mitigación:**
-1. [Ej.: Usar tmpfs (RAM disk) para temporales]
-2. [Ej.: Optimizar presets ffmpeg]
-3. [Ej.: Separar workers en distintos servidores]
-
----
-
-#### Desglose procesamiento ffmpeg
-
-| Etapa            | Tiempo (s) | % del total |
-|------------------|------------|-------------|
-| Recorte 30s      | [TBD]      | [TBD]%      |
-| Escalado 720p    | [TBD]      | [TBD]%      |
-| Quitar audio     | [TBD]      | [TBD]%      |
-| Agregar watermark| [TBD]      | [TBD]%      |
-| Intro/Outro      | [TBD]      | [TBD]%      |
-| **Total**        | [TBD]      | 100%        |
-
-**Oportunidades de optimización:**
-- [Ej: Pre-generar intro/outro si toma >30% del tiempo]
-- [Ej: Usar aceleración hardware si es posible]
-
----
-
-## Conclusiones y Recomendaciones
-
-### Principales hallazgos
-
-1. **Capacidad capa web**
-   - Soporta hasta [X] usuarios concurrentes con SLOs cumplidos.
-   - RPS sostenido: [Y] req/s.
-   - Cuello principal: [componente].
-2. **Throughput de worker**
-   - Óptimo: [N] workers, [X] videos/min.
-   - Escala lineal hasta [N] workers, luego cuellos de I/O.
-3. **Cumplimiento SLO**
-   - Latencia p95 ✓ hasta [X] usuarios.
-   - Tasa de errores siempre <5%.
-
-### Planeación de capacidad
-
-#### Capacidad actual
-
-**Capa Web:**
-- **Recomendación prod:** 70% de máx = [X] usuarios
-- **Margen de seguridad:** 30%
-- **RPS esperado:** [Y] req/s
-
-**Worker:**
-- **Recomendación prod:** [N] workers a [X] videos/min
-- **Monitoreo:** Alertar si cola > [umbral]
-- **Escalar si:** crecimiento sostenido > [umbral]
-
-#### Proyección de crecimiento (6 meses)
-
-| Métrica      | Actual | +50% | +100% | Acción       |
-|--------------|--------|------|-------|-------------|
-| Pico usuarios| [X]    |[X*1.5]|[X*2]| [Escalado]  |
-| Videos/día   | [Y]    |[Y*1.5]|[Y*2]| [Más workers]|
-
-### Recomendaciones de optimización
-
-#### Prioridad alta
-
-1. **[Optimización 1]**
-   - **Problema:** [describe]
-   - **Impacto:** [rendimiento]
-   - **Solución:** [explicación]
-   - **Mejora esperada:** [ej: -20% latencia]
-   - **Esfuerzo:** [Bajo/Medio/Alto]
-
-2. **[Optimización 2]**
-   - [estructura similar]
-
-#### Prioridad media
-3. **[Optimización 3]**
-4. **[Optimización 4]**
-
-#### Baja prioridad
-5. **[Optimización 5]**
-
-### Escalado de infraestructura
-
-#### Horizontal
-
-**Capa Web:**
-```yaml
-# Balanceo con múltiples instancias de API
-nginx:
-  upstream backend {
-    server rest_api_1:8000;
-    server rest_api_2:8000;
-    server rest_api_3:8000;
-  }
-```
-
-**Worker:**
-```yaml
-# Escalar workers independientemente
-celery_worker:
-  deploy:
-    replicas: 4
-```
-
-#### Vertical
-
-**Cuando escalar:**
-- CPU > 70% sostenido
-- RAM > 80% sostenido
-- I/O disco > 20%
-
-**Specs recomendadas:**
-- CPU: [Ej: 16 cores API]
-- RAM: [Ej: 64GB workers]
-- Disco: [Ej: NVMe para temporales]
-
-### Monitoreo y alertas
-
-**Production monitoring:**
-
-```yaml
-alerts:
-  - name: HighLatency
-    condition: p95_latency > 1000ms for 5m
-    action: Escalar API horizontal
-  
-  - name: WorkerQueueGrowth
-    condition: queue_length creciendo 10m
-    action: Añadir worker
-  
-  - name: HighErrorRate
-    condition: error_rate >5% for 2m
-    action: Notificar a ingeniero on-call
-```
-
-### Análisis de Costos
-
-**Costo Infraestructura actual:**
-- [Ej: AWS t3.xlarge API: $X/mes]
-- [Ej: c5.2xlarge Workers: $Y/mes]
-- [Ej: RDS PostgreSQL: $Z/mes]
-- **Total**: $[Total]/mes
-
-**Coste escalando:**
-- 2x capacidad: $[Total]/mes (+[X]%)
-- 4x capacidad: $[Total]/mes (+[Y]%)
-
----
-
-## Apéndices
-
-### Apéndice A: Comandos de referencia
+### Comandos de referencia
 
 #### Escenario 1
 
@@ -665,7 +343,7 @@ python inject_worker_tasks.py --count 100 --size 50MB --mode burst --monitor
 python inject_worker_tasks.py --count 20 --size 200MB --mode sustained --rate 5 --monitor
 ```
 
-### Apéndice B: Consultas Prometheus
+### Consultas Prometheus
 
 ```promql
 # Tasa de requests
@@ -681,7 +359,7 @@ histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[1m]))
 sum by(handler) (rate(http_requests_total[1m]))
 ```
 
-### Apéndice C: Comandos de monitoreo
+### Comandos de monitoreo
 
 ```bash
 # Stats docker
@@ -700,7 +378,7 @@ docker compose logs -f celery_worker --tail=100
 docker compose exec postgres psql -U app_user -d app_db -c "SELECT count(*) FROM pg_stat_activity;"
 ```
 
-### Apéndice D: Limpieza de datos de prueba
+### Limpieza de datos de prueba
 
 ```bash
 # Eliminar videos mock
@@ -717,7 +395,7 @@ print(f'Deleted {deleted} mock video records')
 docker compose exec redis redis-cli FLUSHDB
 ```
 
-### Apéndice E: Configuración de entorno
+### Configuración de entorno
 
 **Archivo `.env` usado en pruebas:**
 ```bash
@@ -731,16 +409,3 @@ UPLOAD_PATH=/my-app/uploads
 PROCESSED_PATH=/my-app/processed
 ```
 
-### Apéndice F: Dashboard JSON Grafana
-
-[Enlace a dashboard exportado o embed si es pequeño]
-
-### Apéndice G: Capturas de pantalla
-
-> **Adjuntar capturas relevantes:**
-> - Locust UI bajo carga máxima.
-> - Gráficas de Grafana (latencia, errores).
-> - Resultados Prometheus.
-> - docker stats.
-
----
