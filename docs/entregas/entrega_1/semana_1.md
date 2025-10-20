@@ -142,12 +142,20 @@ Esta entrega compila los requerimientos solicitados
 
 
 ## Pruebas
-Para ejecutar y documentar las pruebas de carga, es fundamental consultar dos documentos clave:
+- **Plan de pruebas:** Consulte el archivo [`plan_pruebas.md`](plan_pruebas.md), el cual describe detalladamente los escenarios de prueba, los criterios de aceptación (SLOs), el entorno de ejecución y los datos de prueba recomendados.
+- **Análisis de capacidad:** Todos los resultados y el análisis correspondiente a cada ejecución deben ser consignados en [`analisis_capacidad.md`](analisis_capacidad.md), siguiendo el formato establecido para facilitar la comparación y validación respecto a los SLOs definidos.
 
-- **Plan de pruebas:** Revisa el archivo [`plan_pruebas.md`](plan_pruebas.md) donde se describen los escenarios, criterios de aceptación (SLOs), entorno y datos de prueba recomendados.
-- **Análisis de capacidad:** Los resultados y el análisis de cada ejecución deben detallarse en [`analisis_capacidad.md`](analisis_capacidad.md), siguiendo el formato propuesto para facilitar la comparación y validación de SLOs.
+> **Nota:** En el archivo `README.md`  se encuentran instrucciones precisas para la ejecución de las pruebas de carga, tanto mediante Locust (para la capa web) como a través del script `inject_worker_tasks.py` (para la evaluación del worker). Dichas instrucciones contemplan los comandos necesarios, parámetros sugeridos y consideraciones de monitoreo.
 
-> **Nota:** En el archivo `README.md` dentro de la carpeta `load_tests` encontrarás instrucciones específicas sobre cómo correr las pruebas de carga utilizando Locust (para la capa web) y el script `inject_worker_tasks.py` (para pruebas del worker). Estas instrucciones incluyen los comandos, parámetros sugeridos y detalles de monitoreo.
+## CI/D
 
-Antes de ejecutar cualquier prueba, asegúrate de revisar el plan y reportar los resultados en el análisis de capacidad.
-¡Sigue la secuencia recomendada para obtener resultados confiables y reproducibles!
+Se agregó un pipeline de integración y despliegue continuo (CI/CD) usando **GitHub Actions** en la carpeta `.github/workflows`:
+
+- **Archivo:** `.github/workflows/ci-cd.yml`
+- **Qué hace?**
+  - Ejecuta automáticamente los tests unitarios en cada push a la rama `dev`.
+  - Corre los tests cuando se abre o sincroniza un pull request hacia la rama `staging`.
+  - Instala dependencias, realiza checkout del código y muestra el resumen de resultados.
+
+
+

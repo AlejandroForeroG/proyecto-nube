@@ -1,0 +1,113 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ "dev" ]
+  pull_request:
+    branches: [ "staging" ]
+    types: [ opened, synchronize, reopened, closed ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  test-on-dev:
+    name: Test on push to dev
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/dev')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run unit tests
+        run: pytest -q
+
+  test-pr-to-staging:
+    name: Test PR → staging
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (PR HEAD)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run unit tests
+        run: pytest -q
+
+  promote-staging-to-main:
+    name: Auto PR to main after merge into staging
+    if: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.action == 'closed' &&
+          github.event.pull_request.merged == true &&
+          github.event.pull_request.base.ref == 'staging' }}
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_BRANCH: release/staging-${{ github.run_id }}
+    steps:
+      - name: Checkout staging
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run unit tests on staging merge
+        run: pytest -q
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Create release branch from staging
+        run: |
+          git checkout -b "$RELEASE_BRANCH"
+          git push origin "$RELEASE_BRANCH"
+      - name: Open PR to main
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const head = process.env.RELEASE_BRANCH;
+            const base = 'main';
+            const fromBranch = context.payload.pull_request.head.ref;
+            const title = `Promote ${fromBranch} → main`;
+            const body = [
+              `Auto PR generado tras merge a staging.`,
+              `PR origen: #${context.payload.pull_request.number}`,
+              `Rama release: ${head}`,
+            ].join('\n');
+            try {
+              const pr = await github.rest.pulls.create({ owner, repo, head, base, title, body });
+              core.info(`PR creado: #${pr.data.number}`);
+            } catch (e) {
+              // Si ya existe un PR abierto para la misma rama, no fallar el job
+              core.warning(`No se pudo crear PR automáticamente: ${e.message}`);
+            }
+
+
