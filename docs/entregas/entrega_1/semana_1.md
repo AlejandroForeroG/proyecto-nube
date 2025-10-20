@@ -5,7 +5,7 @@ Esta entrega compila los requerimientos solicitados
 
 
 ## Entregas
-- Video sustentación: [Ver video](https://drive.google.com/file/d/1E3vjyf7dd5FIm3wkKZc592LTR_fbfzVh/view?usp=sharing)
+- Video sustentación: [Ver video](https://drive.google.com/file/d/1O0dMHBgJviul23iVsieJB4MkeW3ddumX/view?usp=sharing)
 
 - La especificación OpenAPI de la API está disponible un avez inicialice el proyecto en `/docs` del servicio Nginx (por defecto http://localhost:8080/docs).
 
@@ -141,9 +141,13 @@ Esta entrega compila los requerimientos solicitados
     - `tests/test_health.py::test_health` (200, body `{"status":"ok"}`)
 
 
+## Pruebas
+Para ejecutar y documentar las pruebas de carga, es fundamental consultar dos documentos clave:
 
-TODO:
-- Completar los enlaces a imágenes y artefactos en `docs/imagenes/semana_1/` y `docs/postman/`.
-- Mantener este documento actualizado conforme avancen los artefactos.
+- **Plan de pruebas:** Revisa el archivo [`plan_pruebas.md`](plan_pruebas.md) donde se describen los escenarios, criterios de aceptación (SLOs), entorno y datos de prueba recomendados.
+- **Análisis de capacidad:** Los resultados y el análisis de cada ejecución deben detallarse en [`analisis_capacidad.md`](analisis_capacidad.md), siguiendo el formato propuesto para facilitar la comparación y validación de SLOs.
 
+> **Nota:** En el archivo `README.md` dentro de la carpeta `load_tests` encontrarás instrucciones específicas sobre cómo correr las pruebas de carga utilizando Locust (para la capa web) y el script `inject_worker_tasks.py` (para pruebas del worker). Estas instrucciones incluyen los comandos, parámetros sugeridos y detalles de monitoreo.
 
+Antes de ejecutar cualquier prueba, asegúrate de revisar el plan y reportar los resultados en el análisis de capacidad.
+¡Sigue la secuencia recomendada para obtener resultados confiables y reproducibles!
