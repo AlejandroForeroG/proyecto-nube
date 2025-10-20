@@ -25,41 +25,6 @@
 8. [Apéndices](#apéndices)
 
 ---
-
-## Resumen Ejecutivo
-
-### Propósito
-
-Este documento expone los resultados de las pruebas de carga realizadas sobre la plataforma de procesamiento de videos para determinar:
-1. Usuarios concurrentes máximos soportados por la capa web.
-2. Throughput de procesamiento de la capa de workers (videos/minuto).
-3. Principales cuellos de botella y limitaciones detectadas.
-
-### Hallazgos Clave
-
-> **Nota:** Completar tras ejecución de pruebas.
-
-| Métrica | Resultado | SLO | Estado |
-|---------|-----------|-----|--------|
-| **Capa Web** |
-| Usuarios Concurrentes Máximos | [TBD] usuarios | - | - |
-| RPS a máxima capacidad | [TBD] req/s | - | - |
-| Latencia p95 | [TBD] ms | ≤ 1000ms | [APROBADO/RECHAZADO] |
-| Tasa de errores | [TBD]% | ≤ 5% | [APROBADO/RECHAZADO] |
-| **Capa Worker** |
-| Throughput (50MB) | [TBD] videos/min | - | - |
-| Throughput (100MB) | [TBD] videos/min | - | - |
-| Throughput (200MB) | [TBD] videos/min | - | - |
-| Concurrencia Óptima | [TBD] workers | - | - |
-
-### Principales Cuellos de Botella Identificados
-
-1. **[Nombre del Componente]**: [Descripción]
-2. **[Nombre del Componente]**: [Descripción]
-3. **[Nombre del Componente]**: [Descripción]
-
----
-
 ## Infraestructura Utilizada
 
 ### Especificaciones del Entorno de Pruebas
@@ -77,11 +42,11 @@ Este documento expone los resultados de las pruebas de carga realizadas sobre la
 | Sistema Operativo | [Ej: Ubuntu 22.04 LTS] | |
 | Docker | [Ej: 24.0.6] | |
 | Docker Compose | [Ej: 2.21.0] | |
-| FastAPI | 0.118.0 | workers Uvicorn: [TBD] |
-| PostgreSQL | 16-alpine | Conexiones: [TBD] |
-| Redis | 7-alpine | Memoria: [TBD] |
+| FastAPI | 0.118.0 | workers Uvicorn |
+| PostgreSQL | 16-alpine | Conexiones |
+| Redis | 7-alpine | Memoria |
 | Celery Worker | 5.3.4 | Concurrencia: [según la prueba] |
-| Nginx | alpine | Procesos worker: [TBD] |
+| Nginx | alpine | Procesos worker |
 
 #### Stack de Observabilidad
 
