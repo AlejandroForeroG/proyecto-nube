@@ -15,14 +15,13 @@
 
 ## Tabla de Contenidos
 
-1. [Resumen Ejecutivo](#resumen-ejecutivo)
-2. [Infraestructura Utilizada](#infraestructura-utilizada)
-3. [Metodología de Pruebas](#metodologia-de-pruebas)
-4. [Escenario 1: Capacidad Capa Web](#escenario-1-capacidad-capa-web)
-5. [Escenario 2: Throughput de Worker](#escenario-2-throughput-de-worker)
-6. [Análisis de Cuellos de Botella](#análisis-de-cuellos-de-botella)
-7. [Conclusiones y Recomendaciones](#conclusiones-y-recomendaciones)
-8. [Apéndices](#apéndices)
+1. [Infraestructura Utilizada](#infraestructura-utilizada)
+2. [Metodología de Pruebas](#metodologia-de-pruebas)
+3. [Escenario 1: Capacidad Capa Web](#escenario-1-capacidad-capa-web)
+4. [Escenario 2: Throughput de Worker](#escenario-2-throughput-de-worker)
+5. [Análisis de Cuellos de Botella](#análisis-de-cuellos-de-botella)
+6. [Conclusiones y Recomendaciones](#conclusiones-y-recomendaciones)
+7. [Apéndices](#apéndices)
 
 ---
 ## Infraestructura Utilizada
