@@ -11,21 +11,26 @@ from app.models import Video, VideoStatus
 
 
 UTC = timezone.utc
-celery_app = Celery("worker", broker=settings.REDIS_URL, backend=settings.REDIS_URL)
-celery_app.conf.update(
-    task_serializer="json",
-    result_serializer="json",
-    accept_content=["json"],
-    timezone="UTC",
-    worker_prefetch_multiplier=1,
-    task_acks_late=True,
-)
 
-celery_app.conf.task_always_eager = (
-    bool(int(os.getenv("CELERY_EAGER", "0"))) or settings.TESTING
-)
-celery_app.conf.task_eager_propagates = True
+try:
+    celery_app = Celery("worker", broker=settings.REDIS_URL, backend=settings.REDIS_URL)
+    celery_app.conf.update(
+        task_serializer="json",
+        result_serializer="json",
+        accept_content=["json"],
+        timezone="UTC",
+        worker_prefetch_multiplier=1,
+        task_acks_late=True,
+    )
 
+    celery_app.conf.task_always_eager = (
+        bool(int(os.getenv("CELERY_EAGER", "0"))) or settings.TESTING
+    )
+    celery_app.conf.task_eager_propagates = True
+
+except Exception as e:
+    print(f"Error inicializando Celery/Redis: {e}")
+    celery_app = None 
 
 ASSETS_DIR = Path(getattr(settings, "ASSETS_DIR", "assets"))
 INTRO = ASSETS_DIR / "intro-outro.jpg"
