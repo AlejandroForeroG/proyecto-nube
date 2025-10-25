@@ -1,0 +1,9 @@
+FROM postgres:16-alpine
+
+ENV POSTGRES_DB=app_db \
+    POSTGRES_USER=app_user
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=5 \
+    CMD pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" && echo "Healthy..." || exit 1
+
+VOLUME ["/var/lib/postgresql/data"]
