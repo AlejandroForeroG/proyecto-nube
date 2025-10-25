@@ -22,6 +22,50 @@ append_once() {
   grep -qxF "$line" "$file" 2>/dev/null || echo "$line" >> "$file"
 }
 
+usage() {
+  cat <<EOF
+Usage: $0 --nfs-role <client|server|none>
+
+Opciones:
+  --nfs-role client   Ejecuta nfs-client-mount.sh al final (para instancias app/worker)
+  --nfs-role server   Ejecuta nfs-server-mount.sh al final (para instancia file-server)
+  --nfs-role none     No configura NFS (para desarrollo local)
+
+Ejemplo:
+  sudo ./scripts/aws-setup.sh --nfs-role client
+  sudo ./scripts/aws-setup.sh --nfs-role server
+EOF
+  exit 1
+}
+
+# ---------- Parse args ----------
+NFS_ROLE=""
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --nfs-role)
+      NFS_ROLE="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      ;;
+    *)
+      echo "Error: argumento desconocido '$1'" >&2
+      usage
+      ;;
+  esac
+done
+
+if [ -z "$NFS_ROLE" ]; then
+  echo "Error: --nfs-role es obligatorio" >&2
+  usage
+fi
+
+if [[ ! "$NFS_ROLE" =~ ^(client|server|none)$ ]]; then
+  echo "Error: --nfs-role debe ser 'client', 'server' o 'none'" >&2
+  usage
+fi
+
 need_sudo
 
 echo ">> Updating apt index…"
@@ -36,7 +80,7 @@ echo "==> Installing Python toolchain…"
 $SUDO apt-get install -y python3 python3-venv python3-pip
 if ! pkg_installed pipx; then
   $SUDO apt-get install -y pipx || true
-  $SUDO -H -u "${SUDO_USER:-$USER}" pipx ensurepath || true
+  $SUDO -u "${SUDO_USER:-$USER}" pipx ensurepath || true
 fi
 
 python3 --version || true
@@ -98,7 +142,7 @@ RC_FILE="$USER_HOME/.${SHELL_NAME}rc"
 
 if [ ! -d "$USER_HOME/.nvm" ]; then
   echo ">> Installing nvm for ${SUDO_USER:-$USER}…"
-  $SUDO -H -u "${SUDO_USER:-$USER}" bash -lc \
+  $SUDO -u "${SUDO_USER:-$USER}" bash -lc \
     'curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash'
 fi
 
@@ -106,21 +150,21 @@ append_once 'export NVM_DIR="$HOME/.nvm"' "$RC_FILE"
 append_once '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' "$RC_FILE"
 append_once '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"' "$RC_FILE"
 
-$SUDO -H -u "${SUDO_USER:-$USER}" bash -lc \
+$SUDO -u "${SUDO_USER:-$USER}" bash -lc \
   'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install --lts; nvm alias default "lts/*"; node -v; npm -v'
 
 echo "==> Cloning project 'proyecto-nube'…"
 
-PROJECT_DIR="/home/${SUDO_USER:-$USER}/user"
-$SUDO -u "${SUDO_USER:-$USER}" mkdir -p "$PROJECT_DIR"
-cd "$PROJECT_DIR"
-
-if [ -d "proyecto-nube/.git" ]; then
+PROJECT_DIR="$USER_HOME/proyecto-nube"
+if [ -d "$PROJECT_DIR/.git" ]; then
   echo ">> Existing repo found, pulling latest changes..."
-  $SUDO -u "${SUDO_USER:-$USER}" git -C proyecto-nube pull
+  $SUDO -u "${SUDO_USER:-$USER}" git -C "$PROJECT_DIR" pull || true
 else
   echo ">> Cloning fresh repo..."
-  $SUDO -u "${SUDO_USER:-$USER}" git clone https://github.com/AlejandroForeroG/proyecto-nube.git
+  $SUDO -u "${SUDO_USER:-$USER}" git clone https://github.com/AlejandroForeroG/proyecto-nube.git "$PROJECT_DIR" || {
+    echo ">> Clone failed, creating directory manually..."
+    $SUDO -u "${SUDO_USER:-$USER}" mkdir -p "$PROJECT_DIR"
+  }
 fi
 
 echo "==> Fixing Docker socket permissions..."
@@ -133,6 +177,47 @@ echo "Python:      $(python3 --version 2>/dev/null || echo 'not found')"
 echo "Docker:      $(docker --version 2>/dev/null || echo 'not found')"
 echo "Compose:     $(docker compose version 2>/dev/null || echo 'not found')"
 echo "Git:         $(git --version 2>/dev/null || echo 'not found')"
-echo "Node:        $($SUDO -H -u "${SUDO_USER:-$USER}" bash -lc 'node -v' 2>/dev/null || echo 'reload shell')"
+echo "Node:        $($SUDO -u "${SUDO_USER:-$USER}" bash -lc 'node -v' 2>/dev/null || echo 'reload shell')"
+echo "NFS Role:    $NFS_ROLE"
 echo "==================================================="
-echo ">> Rebooting system to apply docker group permissions...
+
+# ---------- NFS Setup ----------
+echo
+echo "==> Configuring NFS (role: $NFS_ROLE)..."
+
+cd "$PROJECT_DIR"
+
+case "$NFS_ROLE" in
+  client)
+    if [ -f "scripts/nfs-client-mount.sh" ]; then
+      echo ">> Running NFS client mount script..."
+      chmod +x scripts/nfs-client-mount.sh
+      $SUDO ./scripts/nfs-client-mount.sh
+      echo ">> NFS client configured. Mounts:"
+      mountpoint ./uploads && echo "  ✓ ./uploads"
+      mountpoint ./processed && echo "  ✓ ./processed"
+      mountpoint ./assets && echo "  ✓ ./assets"
+    else
+      echo "Warning: scripts/nfs-client-mount.sh not found" >&2
+    fi
+    ;;
+  server)
+    if [ -f "scripts/nfs-server-mount.sh" ]; then
+      echo ">> Running NFS server bootstrap script..."
+      chmod +x scripts/nfs-server-mount.sh
+      $SUDO ./scripts/nfs-server-mount.sh
+      echo ">> NFS server directories ready at /srv/nfs"
+      echo ">> Now start the NFS container with:"
+      echo "   cd $PROJECT_DIR/docker && docker compose -f compose.file-server.yml up -d"
+    else
+      echo "Warning: scripts/nfs-server-mount.sh not found" >&2
+    fi
+    ;;
+  none)
+    echo ">> Skipping NFS configuration (role: none)"
+    ;;
+esac
+
+echo
+echo ">> Setup complete!"
+echo ">> Please log out and back in (or reboot) to apply docker group permissions."
