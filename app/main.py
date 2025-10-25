@@ -26,7 +26,7 @@ app.include_router(public.router, prefix="/api/public", tags=["Public"])
 Instrumentator().instrument(app).expose(app)
 
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
     return {"status": "ok"}
 
