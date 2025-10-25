@@ -37,21 +37,21 @@ INTRO_OUTRO_IMG = ASSETS_DIR / "intro-outro.jpg"
 def process_video(video_db_id: int, original_path: str):
     final_out = os.path.join(settings.PROCESSED_PATH, f"{video_db_id}_processed.mp4")
     Path(settings.PROCESSED_PATH).mkdir(parents=True, exist_ok=True)
-
-    with tempfile.TemporaryDirectory() as td:
-        td = Path(td)
-        trimmed = td / "trimmed.mp4"
-        v720 = td / "v720.mp4"
-        muted = td / "muted.mp4"
-        wm = td / "wm.mp4"
+    return "Path to the processed video"
+    # with tempfile.TemporaryDirectory() as td:
+    #     td = Path(td)
+    #     trimmed = td / "trimmed.mp4"
+    #     v720 = td / "v720.mp4"
+    #     muted = td / "muted.mp4"
+    #     wm = td / "wm.mp4"
 
     
-        vu.trim_to_seconds(original_path, str(trimmed), seconds=30)
-        vu.scale_to_720p(str(trimmed), str(v720))
-        vu.remove_audio(str(v720), str(muted), reencode=False)
-        vu.add_watermark(str(muted), str(wm), watermark_path=str(Path(WATERMARK)))
-        vu.add_image_intro_outro(str(Path(INTRO_OUTRO_IMG)), str(wm), final_out)
-        return final_out
+    #     vu.trim_to_seconds(original_path, str(trimmed), seconds=30)
+    #     vu.scale_to_720p(str(trimmed), str(v720))
+    #     vu.remove_audio(str(v720), str(muted), reencode=False)
+    #     vu.add_watermark(str(muted), str(wm), watermark_path=str(Path(WATERMARK)))
+    #     vu.add_image_intro_outro(str(Path(INTRO_OUTRO_IMG)), str(wm), final_out)
+    #     return final_out
 
 
 @celery_app.task(bind=True, max_retries=3, soft_time_limit=600, time_limit=1200)
@@ -65,10 +65,21 @@ def process_video_task(self, video_db_id: int, original_path: str):
         video.status = VideoStatus.processing.value
         db.commit()
         v_processed = process_video(video_db_id, original_path)
-        video.processed_path = v_processed
+        # video.processed_path = v_processed
         video.updated_at = datetime.now(UTC)
         video.status = VideoStatus.done.value
         db.commit()
+
+        print(f"Video processed: {v_processed}")
+        print(f"Video status: {video.status}")
+        print(f"Video updated at: {video.updated_at}")
+        print(f"Video task id: {video.task_id}")
+        print(f"Video user id: {video.user_id}")
+        print(f"Video is public: {video.is_public}")
+        print(f"Video original path: {video.original_path}")
+        print(f"Video processed path: {video.processed_path}")
+        print(f"Video task id: {video.task_id}")
+        print(f"Video user id: {video.user_id}")
         return v_processed
     except Exception as e:
         try:
