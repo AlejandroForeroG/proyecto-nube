@@ -73,7 +73,7 @@ async def upload_video(
 
     original_rel = f"{video_uuid}_original{ext}"
     storage_backend = os.getenv("STORAGE_BACKEND", "local")
-    storage = get_storage(base_dir=settings.UPLOAD_PATH, storage_backend=storage_backend)
+    storage = get_storage(base_dir=settings.UPLOAD_PATH, storage_backend="local")
     try:
         saved_path = await storage.save_async(
             video_file,
@@ -81,7 +81,9 @@ async def upload_video(
             chunk_size=CHUNK_SIZE,
             max_size=settings.MAX_FILE_SIZE,
         )
+   
     except ValueError:
+        print("Error al guardar el archivo")
         raise HTTPException(
             HTTPStatus.BAD_REQUEST, "El archivo excede el tamaño limite"
         )
