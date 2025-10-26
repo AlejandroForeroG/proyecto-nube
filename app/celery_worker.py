@@ -42,7 +42,6 @@ INTRO_OUTRO_IMG = ASSETS_DIR / "intro-outro.jpg"
 def process_video(video_db_id: int, original_path: str):
     final_out = os.path.join(settings.PROCESSED_PATH, f"{video_db_id}_processed.mp4")
     Path(settings.PROCESSED_PATH).mkdir(parents=True, exist_ok=True)
-    return "Path to the processed video"
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
         trimmed = td / "trimmed.mp4"
