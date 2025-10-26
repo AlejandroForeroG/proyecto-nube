@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_fastapi_instrumentator import Instrumentator, metrics
 
 from app.api.routes import auth, public, videos
 
@@ -23,8 +23,28 @@ app.include_router(videos.router, prefix="/api/videos", tags=["Videos"])
 app.include_router(public.router, prefix="/api/public", tags=["Public"])
 
 
-Instrumentator().instrument(app).expose(app)
-
+Instrumentator().add(
+    metrics.latency(
+        buckets=(
+            0.005,
+            0.01,
+            0.025,
+            0.05,
+            0.075,
+            0.1,
+            0.25,
+            0.5,
+            0.75,
+            1.0,
+            2.5,
+            5.0,
+            7.5,
+            10.0,
+            15.0,
+            20.0,
+        )
+    )
+).add(metrics.requests()).instrument(app).expose(app)
 
 @app.get("/api/health")
 def health():

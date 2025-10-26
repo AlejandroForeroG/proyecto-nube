@@ -6,7 +6,7 @@ from locust.runners import MasterRunner
 
 
 class VideoUploadUser(HttpUser):
-    wait_time = between(1, 3)
+    wait_time = between(0.1, 0.5)
     created_video_ids: list[str] = []
 
     def on_start(self):
@@ -51,7 +51,7 @@ class VideoUploadUser(HttpUser):
         if not self.token:
             return
 
-        video_content = b"0" * (1024 * 1024)
+        video_content = b"0" * (10 * 1024)
 
         files = {"video_file": ("test_video.mp4", video_content, "video/mp4")}
 

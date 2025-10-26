@@ -366,8 +366,152 @@
       ],
       "title": "Error Percentage",
       "type": "timeseries"
-    }
-  ],
+    },
+  {
+    "datasource": "Prometheus",
+    "fieldConfig": {
+      "defaults": {
+        "color": { "mode": "palette-classic" },
+        "custom": {
+          "axisLabel": "",
+          "axisPlacement": "auto",
+          "barAlignment": 0,
+          "drawStyle": "line",
+          "fillOpacity": 10,
+          "gradientMode": "none",
+          "hideFrom": { "tooltip": false, "viz": false, "legend": false },
+          "lineInterpolation": "linear",
+          "lineWidth": 1,
+          "pointSize": 5,
+          "scaleDistribution": { "type": "linear" },
+          "showPoints": "never",
+          "spanNulls": true
+        },
+        "mappings": [],
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 80 } ] },
+        "unit": "percent"
+      },
+      "overrides": []
+    },
+    "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+    "id": 7,
+    "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+    "pluginVersion": "8.0.0",
+    "targets": [
+      { "expr": "100 * (1 - avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])))", "legendFormat": "CPU {{instance}}", "refId": "A" }
+    ],
+    "title": "Host CPU Usage %",
+    "type": "timeseries"
+  },
+  {
+    "datasource": "Prometheus",
+    "fieldConfig": {
+      "defaults": {
+        "color": { "mode": "palette-classic" },
+        "custom": {
+          "axisLabel": "",
+          "axisPlacement": "auto",
+          "barAlignment": 0,
+          "drawStyle": "line",
+          "fillOpacity": 10,
+          "gradientMode": "none",
+          "hideFrom": { "tooltip": false, "viz": false, "legend": false },
+          "lineInterpolation": "linear",
+          "lineWidth": 1,
+          "pointSize": 5,
+          "scaleDistribution": { "type": "linear" },
+          "showPoints": "never",
+          "spanNulls": true
+        },
+        "mappings": [],
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 90 } ] },
+        "unit": "percent"
+      },
+      "overrides": []
+    },
+    "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+    "id": 8,
+    "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+    "pluginVersion": "8.0.0",
+    "targets": [
+      { "expr": "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))", "legendFormat": "RAM {{instance}}", "refId": "A" }
+    ],
+    "title": "Host Memory Used %",
+    "type": "timeseries"
+  },
+  {
+    "datasource": "Prometheus",
+    "fieldConfig": {
+      "defaults": {
+        "color": { "mode": "palette-classic" },
+        "custom": {
+          "axisLabel": "",
+          "axisPlacement": "auto",
+          "barAlignment": 0,
+          "drawStyle": "line",
+          "fillOpacity": 10,
+          "gradientMode": "none",
+          "hideFrom": { "tooltip": false, "viz": false, "legend": false },
+          "lineInterpolation": "linear",
+          "lineWidth": 1,
+          "pointSize": 5,
+          "scaleDistribution": { "type": "linear" },
+          "showPoints": "never",
+          "spanNulls": true
+        },
+        "mappings": [],
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] },
+        "unit": "percent"
+      },
+      "overrides": []
+    },
+    "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+    "id": 9,
+    "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+    "pluginVersion": "8.0.0",
+    "targets": [
+      { "expr": "100 * sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=\"app\", image!=\"\"}[5m]))", "legendFormat": "{{container_label_com_docker_compose_service}}", "refId": "A" }
+    ],
+    "title": "Container CPU by service (%)",
+    "type": "timeseries"
+  },
+  {
+    "datasource": "Prometheus",
+    "fieldConfig": {
+      "defaults": {
+        "color": { "mode": "palette-classic" },
+        "custom": {
+          "axisLabel": "",
+          "axisPlacement": "auto",
+          "barAlignment": 0,
+          "drawStyle": "line",
+          "fillOpacity": 10,
+          "gradientMode": "none",
+          "hideFrom": { "tooltip": false, "viz": false, "legend": false },
+          "lineInterpolation": "linear",
+          "lineWidth": 1,
+          "pointSize": 5,
+          "scaleDistribution": { "type": "linear" },
+          "showPoints": "never",
+          "spanNulls": true
+        },
+        "mappings": [],
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] },
+        "unit": "megabytes"
+      },
+      "overrides": []
+    },
+    "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+    "id": 10,
+    "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+    "pluginVersion": "8.0.0",
+    "targets": [
+      { "expr": "sum by (container_label_com_docker_compose_service) (container_memory_usage_bytes{container_label_com_docker_compose_project=\"app\"}) / 1024^2", "legendFormat": "{{container_label_com_docker_compose_service}}", "refId": "A" }
+    ],
+    "title": "Container Memory by service (MB)",
+    "type": "timeseries"
+  }
+],
   "refresh": "5s",
   "schemaVersion": 27,
   "style": "dark",
