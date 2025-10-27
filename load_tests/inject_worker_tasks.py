@@ -6,15 +6,20 @@ import time
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from celery import Celery
+from dotenv import load_dotenv
+
+from app.core.database import SessionLocal
+from app.models import User, Video, VideoStatus
+
+# Cargar variables de entorno desde .env lo antes posible
+load_dotenv()
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 UPLOAD_PATH = os.getenv("UPLOAD_PATH", "./load_tests/test_files")
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql+psycopg2://app_user:app_password@localhost:5432/app_db"
-)
+
 
 def create_test_video_file(size_mb: int, output_path: Path) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -29,17 +34,60 @@ def create_test_video_file(size_mb: int, output_path: Path) -> Path:
             written += len(chunk)
     return output_path
 
+
+def resolve_test_file(size_mb: int, file_arg: Optional[str], no_generate: bool) -> Path:
+    if file_arg:
+        p = Path(file_arg)
+        if not p.exists():
+            raise FileNotFoundError(f"Provided --file does not exist: {p}")
+        return p
+    # Por defecto generar bajo UPLOAD_PATH para que el Worker lo vea (NFS)
+    test_file_path = Path(UPLOAD_PATH) / "test_files" / f"test_video_{size_mb}MB.mp4"
+    if test_file_path.exists():
+        return test_file_path
+    if no_generate:
+        raise FileNotFoundError(
+            f"Test file not found and --no-generate set: {test_file_path}"
+        )
+    return create_test_video_file(size_mb, test_file_path)
+
+
+def get_default_user_id(db) -> int:
+    u = db.query(User).first()
+    if not u:
+        raise RuntimeError(
+            "No users found in DB. Create a user or provide --user-id explicitly."
+        )
+    return int(u.id)
+
+
+def create_video_record(db, user_id: int, original_path: str, title: str) -> Video:
+    v = Video(
+        video_id=str(uuid.uuid4()),
+        title=title,
+        status=VideoStatus.uploaded.value,
+        original_path=original_path,
+        user_id=user_id,
+    )
+    db.add(v)
+    db.commit()
+    db.refresh(v)
+    return v
+
+
 def inject_tasks(
     count: int,
     size_mb: int,
     mode: str = "burst",
     rate: int = 10,
     redis_url: str = REDIS_URL,
+    file_arg: Optional[str] = None,
+    no_generate: bool = False,
+    user_id: Optional[int] = None,
 ) -> List[str]:
-    celery_app = Celery("worker", broker=redis_url, backend=redis_url)
-    test_file_path = Path(UPLOAD_PATH) / f"test_video_{size_mb}MB.mp4"
-    if not test_file_path.exists():
-        create_test_video_file(size_mb, test_file_path)
+    # Validar conectividad con Redis creando una app Celery (evita errores de env)
+    _ = Celery("worker", broker=redis_url, backend=redis_url)
+    test_file_path = resolve_test_file(size_mb, file_arg, no_generate)
     task_ids = []
     print(f"\n{'=' * 60}")
     print("INJECTING TASKS - Scenario 2 (Worker Throughput)")
@@ -52,17 +100,28 @@ def inject_tasks(
         print(f"Rate: {rate} tasks/minute")
     print(f"{'=' * 60}\n")
     start_time = time.time()
+    db = SessionLocal()
     for i in range(count):
-        video_db_id = i + 10000
-        from app.celery_worker import process_video_task
-        task = process_video_task.apply_async(
-            args=[video_db_id, str(test_file_path)], task_id=f"load-test-{uuid.uuid4()}"
-        )
-        task_ids.append(task.id)
-        print(f"[{i + 1}/{count}] Enqueued task {task.id} (video_id={video_db_id})")
+        try:
+            resolved_user_id = int(user_id) if user_id else get_default_user_id(db)
+            title = f"Load Test Video {size_mb}MB #{i + 1}"
+            v = create_video_record(db, resolved_user_id, str(test_file_path), title)
+            from app.celery_worker import process_video_task
+
+            task = process_video_task.apply_async(
+                args=[v.id, str(test_file_path)], task_id=f"load-test-{uuid.uuid4()}"
+            )
+            v.task_id = task.id
+            db.commit()
+            task_ids.append(task.id)
+            print(f"[{i + 1}/{count}] Enqueued task {task.id} (db_video_id={v.id})")
+        except Exception as exc:
+            print(f"Error enqueuing task #{i + 1}: {exc}")
+            continue
         if mode == "sustained" and i < count - 1:
             delay = 60.0 / rate
             time.sleep(delay)
+    db.close()
     elapsed = time.time() - start_time
     print(f"\n{'=' * 60}")
     print("INJECTION COMPLETE")
@@ -84,6 +143,7 @@ def inject_tasks(
             f.write(f"{task_id}\n")
     print(f"Task IDs saved to: {log_file}")
     return task_ids
+
 
 def monitor_tasks(task_ids: List[str], redis_url: str = REDIS_URL):
     celery_app = Celery("worker", broker=redis_url, backend=redis_url)
@@ -125,6 +185,7 @@ def monitor_tasks(task_ids: List[str], redis_url: str = REDIS_URL):
     except KeyboardInterrupt:
         print("\n\nMonitoring stopped by user.")
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Inject video processing tasks for worker throughput testing"
@@ -159,6 +220,23 @@ def main():
         help=f"Redis URL (default: {REDIS_URL})",
     )
     parser.add_argument(
+        "--file",
+        type=str,
+        default=None,
+        help="Use existing video file path (must be accessible to Worker)",
+    )
+    parser.add_argument(
+        "--no-generate",
+        action="store_true",
+        help="Do not generate a test file if it does not exist",
+    )
+    parser.add_argument(
+        "--user-id",
+        type=int,
+        default=None,
+        help="User ID owner of created Video rows (defaults to first user)",
+    )
+    parser.add_argument(
         "--monitor", action="store_true", help="Monitor task progress after injection"
     )
     args = parser.parse_args()
@@ -169,11 +247,15 @@ def main():
         mode=args.mode,
         rate=args.rate,
         redis_url=args.redis_url,
+        file_arg=args.file,
+        no_generate=args.no_generate,
+        user_id=args.user_id,
     )
     if args.monitor:
         monitor_tasks(task_ids, args.redis_url)
     else:
         print("\nTip: Use --monitor flag to track task progress")
+
 
 if __name__ == "__main__":
     main()
