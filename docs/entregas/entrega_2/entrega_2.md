@@ -1,5 +1,6 @@
 ## Entrega 2 – Documentación de Arquitectura Ajustada
-
+### Video entrega
+[ver video](https://drive.google.com/file/d/1EMEiyAZOj-ee-jmFooUB-dgbsGvcF2cM/view?usp=sharing)
 ### 1) Resumen
 Se implementó un despliegue distribuido en AWS compuesto por tres instancias Amazon EC2: Web Server (API + Nginx), Worker (Celery) y File Server (NFS), junto con una base de datos gestionada en Amazon RDS (PostgreSQL). El objetivo es desacoplar responsabilidades, permitir escalamiento independiente y compartir archivos entre componentes mediante NFS v4.1.
 
