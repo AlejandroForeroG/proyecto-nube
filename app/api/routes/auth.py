@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
 from http import HTTPStatus
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.orm import Session
+
+from app.api.schemas.schemas import Token, UserCreate
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models import User
-from app.api.schemas.schemas import Token, UserCreate
 
 router = APIRouter()
 
@@ -41,11 +42,15 @@ async def login(request: Request, db: Session = Depends(get_db)):
         email = body.get("email")
         password = body.get("password")
     else:
-        form = await OAuth2PasswordRequestForm()(request)
-        email = form.username
-        password = form.password
+        form = await request.form()
+        email = form.get("username")
+        password = form.get("password")
     user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(HTTPStatus.UNAUTHORIZED, "Credenciales invalidas")
     token = create_access_token({"sub": str(user.id)})
-    return {"access_token": token, "token_type": "bearer", "expires_in": settings.ACCESS_TOKEN_EXPIRE_SECONDS}
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+    }

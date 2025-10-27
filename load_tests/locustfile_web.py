@@ -1,14 +1,14 @@
 import random
 from uuid import uuid4
-
+import os
 from locust import HttpUser, between, events, task
 from locust.runners import MasterRunner
 
-
+BASE_URL = os.getenv("WEB_SEVER_URL", "http://localhost:8080")
 class VideoUploadUser(HttpUser):
-    wait_time = between(1, 3)
+    wait_time = between(0.1, 0.5)
     created_video_ids: list[str] = []
-
+    base_url = BASE_URL
     def on_start(self):
         password = "TestPassword123!"
         email = f"loadtest_{uuid4().hex}@example.com"
@@ -51,7 +51,7 @@ class VideoUploadUser(HttpUser):
         if not self.token:
             return
 
-        video_content = b"0" * (1024 * 1024)
+        video_content = b"0" * (10 * 1024)
 
         files = {"video_file": ("test_video.mp4", video_content, "video/mp4")}
 

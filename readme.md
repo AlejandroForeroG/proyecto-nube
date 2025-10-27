@@ -7,6 +7,7 @@
 
 ### Entregas
 - Semana 1: [Documento de la entrega](./docs/entregas/semana_1/semana_1.md)
+- Semana 2: [Arquitectura ajustada (EC2 + NFS + RDS)](./docs/entregas/entrega_2/entrega_2.md)
 ## Documentación 
 ### 1) Estructura del proyecto y cómo funciona cada parte
 
