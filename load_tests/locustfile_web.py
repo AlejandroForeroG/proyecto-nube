@@ -1,14 +1,14 @@
 import random
 from uuid import uuid4
-
+import os
 from locust import HttpUser, between, events, task
 from locust.runners import MasterRunner
 
-
+BASE_URL = os.getenv("WEB_SEVER_URL", "http://localhost:8080")
 class VideoUploadUser(HttpUser):
     wait_time = between(0.1, 0.5)
     created_video_ids: list[str] = []
-
+    base_url = BASE_URL
     def on_start(self):
         password = "TestPassword123!"
         email = f"loadtest_{uuid4().hex}@example.com"

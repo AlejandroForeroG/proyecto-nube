@@ -4,11 +4,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from celery import Celery
+
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.utils import video_utils as vu
 from app.models import Video, VideoStatus
-
 
 UTC = timezone.utc
 
@@ -30,13 +30,14 @@ try:
 
 except Exception as e:
     print(f"Error inicializando Celery/Redis: {e}")
-    celery_app = None 
+    celery_app = None
 
 ASSETS_DIR = Path(getattr(settings, "ASSETS_DIR", "assets"))
-INTRO = ASSETS_DIR / "intro-outro.jpg"
-OUTRO = ASSETS_DIR / "intro-outro.jpg"
+INTRO_OUTRO_FILENAME = "intro-outro.jpg"
+INTRO = ASSETS_DIR / INTRO_OUTRO_FILENAME
+OUTRO = ASSETS_DIR / INTRO_OUTRO_FILENAME
 WATERMARK = ASSETS_DIR / "watermark.png"
-INTRO_OUTRO_IMG = ASSETS_DIR / "intro-outro.jpg"
+INTRO_OUTRO_IMG = ASSETS_DIR / INTRO_OUTRO_FILENAME
 
 
 def process_video(video_db_id: int, original_path: str):
@@ -49,7 +50,6 @@ def process_video(video_db_id: int, original_path: str):
         muted = td / "muted.mp4"
         wm = td / "wm.mp4"
 
-    
         vu.trim_to_seconds(original_path, str(trimmed), seconds=30)
         vu.scale_to_720p(str(trimmed), str(v720))
         vu.remove_audio(str(v720), str(muted), reencode=False)
@@ -77,7 +77,9 @@ def process_video_task(self, video_db_id: int, original_path: str):
             if original_path and os.path.exists(original_path):
                 os.remove(original_path)
         except Exception as delete_exc:
-            print(f"Error al eliminar el archivo original: {original_path}: {delete_exc}")
+            print(
+                f"Error al eliminar el archivo original: {original_path}: {delete_exc}"
+            )
         return v_processed
     except Exception as e:
         try:

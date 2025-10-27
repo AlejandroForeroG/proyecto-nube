@@ -25,3 +25,4 @@ pysonar
 prometheus-fastapi-instrumentator==7.0.0
 prometheus-client==0.20.0
 gunicorn==22.0.0
+aiofiles==23.2.1

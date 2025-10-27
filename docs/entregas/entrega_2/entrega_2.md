@@ -127,3 +127,28 @@ Variables relevantes:
 - (10%) Configuración de Amazon RDS como base de datos relacional de la aplicación.
 
 [Espacio para evidencias y capturas]
+
+### 12) Correcciones SonarQube
+
+Esta sección recopila las correcciones realizadas a partir de hallazgos de SonarQube. Por cada corrección se documenta el problema, la acción tomada y la justificación.
+
+
+- Primera correcion:
+  - Problema detectado: Uso de API de autenticación con invocación incorrecta (Severidad: Major).
+  - Archivo afectado : `app/api/routes/auth.py`.
+  - Corrección aplicada: reemplazo de llamada a `OAuth2PasswordRequestForm` por lectura directa de `request.form()` para extraer `username` y `password`.
+  - Justificación: evita invocar un objeto no llamable, simplifica el manejo de `application/x-www-form-urlencoded` y alinea con FastAPI.
+
+- Segunda  corrección: eliminar literal duplicado para imagen de intro/outro
+  - Archivo afectado: `app/celery_worker.py`
+  - Problema: el literal "intro-outro.jpg" estaba duplicado en tres constantes (`INTRO`, `OUTRO`, `INTRO_OUTRO_IMG`).
+  - Solución: se creó la constante `INTRO_OUTRO_FILENAME` y se referenció desde las tres rutas para evitar duplicidad.
+  - Justificación: mejora mantenibilidad y cumple la regla de SonarQube sobre duplicación de literales.
+
+- Tercera corrección: reducir complejidad cognitiva y usar API asíncrona de archivos
+  - Archivo afectado: `app/core/storage.py`
+  - Problema: Complejidad Cognitiva alta (regla `python:S3776`) y uso de `open()` síncrono dentro de funciones `async`.
+  - Solución: extracción de helpers `_iterate_chunks` y `_write_stream_to_file` para simplificar el flujo y uso de `aiofiles` en `save_async` de `LocalStorage` y `NFSStore`. Se mantiene `fsync` para durabilidad en NFS.
+  - Justificación: mejora mantenibilidad, reduce la complejidad a lo permitido y alinea con buenas prácticas de E/S asíncrona.
+
+- Cuarta corrección: se soluciona con la corrección del punto 3.
