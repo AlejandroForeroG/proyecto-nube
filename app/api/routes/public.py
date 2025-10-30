@@ -1,3 +1,4 @@
+import logging
 from http import HTTPStatus
 from typing import List
 
@@ -20,6 +21,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models import User, Video, VideoStatus, Vote
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -50,6 +52,7 @@ def list_public_videos(request: Request, db: Session = Depends(get_db)):
                 votes=int(votes or 0),
             )
         )
+    logger.info("Public videos listed", extra={"count": len(items)})
     return items
 
 
@@ -75,6 +78,10 @@ def vote_public_video(
         .first()
     )
     if not video:
+        logger.warning(
+            "Vote attempt on missing or non-public video",
+            extra={"video_id": video_id, "user_id": user.id},
+        )
         raise HTTPException(HTTPStatus.NOT_FOUND, "Video no encontrado.")
 
     already = (
@@ -83,11 +90,19 @@ def vote_public_video(
         .first()
     )
     if already:
+        logger.info(
+            "Duplicate vote prevented",
+            extra={"video_id": video_id, "user_id": user.id},
+        )
         raise HTTPException(HTTPStatus.BAD_REQUEST, "Ya has votado por este video.")
 
     v = Vote(user_id=user.id, video_id=video.id)
     db.add(v)
     db.commit()
+    logger.info(
+        "Vote registered",
+        extra={"video_id": video_id, "user_id": user.id, "vote_id": v.id},
+    )
     return VoteMessageResponse(message="Voto registrado exitosamente.")
 
 
@@ -132,5 +147,8 @@ def get_rankings(
                 votes=int(votes or 0),
             )
         )
+    logger.info(
+        "Rankings fetched",
+        extra={"city": city, "page": page, "page_size": page_size, "count": len(items)},
+    )
     return items
-

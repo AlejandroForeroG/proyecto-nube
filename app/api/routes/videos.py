@@ -1,3 +1,5 @@
+import logging
+import os
 import uuid
 from datetime import datetime
 from http import HTTPStatus
@@ -27,7 +29,9 @@ from app.core.security import get_current_user
 from app.core.storage import get_storage
 from app.models import User, Video, VideoStatus, Vote
 from app.models.models import UTC
-import os
+
+
+logger = logging.getLogger(__name__)
 
 
 def auth_and_set_user(request: Request, user: User = Depends(get_current_user)):
@@ -59,7 +63,19 @@ async def upload_video(
     title: str = Form(...),
     db: Session = Depends(get_db),
 ):
+    logger.debug(
+        "Upload request received",
+        extra={
+            "filename": video_file.filename,
+            "content_type": video_file.content_type,
+            "user_id": getattr(request.state.user, "id", None),
+        },
+    )
     if not video_file.content_type or not video_file.content_type.startswith("video/"):
+        logger.warning(
+            "Upload rejected due to invalid content type",
+            extra={"content_type": video_file.content_type},
+        )
         raise HTTPException(
             HTTPStatus.BAD_REQUEST, "Tipo de archivo invalido, debe ser un video"
         )
@@ -67,13 +83,17 @@ async def upload_video(
     video_uuid = str(uuid.uuid4())
     ext = (Path(video_file.filename).suffix or ".mp4").lower()
     if ext not in ALLOWED_EXTS:
+        logger.warning(
+            "Upload rejected due to unsupported extension",
+            extra={"extension": ext, "video_uuid": video_uuid},
+        )
         raise HTTPException(
             HTTPStatus.BAD_REQUEST, f"Tipo de archivo no soportado {ext}"
         )
 
     original_rel = f"{video_uuid}_original{ext}"
     storage_backend = os.getenv("STORAGE_BACKEND", "local")
-    storage = get_storage(base_dir=settings.UPLOAD_PATH, storage_backend="local")
+    storage = get_storage(base_dir=settings.UPLOAD_PATH, storage_backend=storage_backend)
     try:
         saved_path = await storage.save_async(
             video_file,
@@ -81,9 +101,11 @@ async def upload_video(
             chunk_size=CHUNK_SIZE,
             max_size=settings.MAX_FILE_SIZE,
         )
-   
     except ValueError:
-        print("Error al guardar el archivo")
+        logger.error(
+            "Upload rejected due to file size limit",
+            extra={"video_uuid": video_uuid},
+        )
         raise HTTPException(
             HTTPStatus.BAD_REQUEST, "El archivo excede el tamaño limite"
         )
@@ -103,6 +125,10 @@ async def upload_video(
     db.refresh(v)
 
     task = process_video_task.delay(v.id, saved_path)
+    logger.info(
+        "Video queued for processing",
+        extra={"video_id": v.video_id, "task_id": task.id, "user_id": current_user.id},
+    )
     v.task_id = task.id
     db.commit()
 
@@ -126,7 +152,10 @@ async def upload_video_mock(
     db: Session = Depends(get_db),
 ):
     if not video_file.content_type or not video_file.content_type.startswith("video/"):
-        print(video_file.content_type)
+        logger.warning(
+            "Mock upload rejected due to invalid content type",
+            extra={"content_type": video_file.content_type},
+        )
         raise HTTPException(
             HTTPStatus.BAD_REQUEST, "Tipo de archivo invalido, debe ser un video"
         )
@@ -134,7 +163,10 @@ async def upload_video_mock(
     video_uuid = str(uuid.uuid4())
     ext = (Path(video_file.filename).suffix or ".mp4").lower()
     if ext not in ALLOWED_EXTS:
-        print(ext)
+        logger.warning(
+            "Mock upload rejected due to unsupported extension",
+            extra={"extension": ext, "video_uuid": video_uuid},
+        )
         raise HTTPException(
             HTTPStatus.BAD_REQUEST, f"Tipo de archivo no soportado {ext}"
         )
@@ -150,7 +182,10 @@ async def upload_video_mock(
             max_size=settings.MAX_FILE_SIZE,
         )
     except ValueError as e:
-        print(e)
+        logger.error(
+            "Mock upload rejected due to file size limit",
+            extra={"video_uuid": video_uuid, "error": str(e)},
+        )
         raise HTTPException(
             HTTPStatus.BAD_REQUEST, "El archivo excede el tamaño limite"
         )
@@ -172,6 +207,10 @@ async def upload_video_mock(
     mock_task_id = f"mock-{video_uuid}"
     v.task_id = mock_task_id
     db.commit()
+    logger.info(
+        "Mock upload stored",
+        extra={"video_id": v.video_id, "task_id": mock_task_id, "user_id": current_user.id},
+    )
 
     return {
         "message": "Video subido correctamente (mock mode - sin procesamiento).",
@@ -211,6 +250,10 @@ async def get_user_videos(
                 processed_url=processed_url,
             )
         )
+    logger.info(
+        "User videos fetched",
+        extra={"user_id": current_user.id, "count": len(response)},
+    )
     return response
 
 
@@ -226,6 +269,7 @@ async def get_video_detail(
 ):
     video = db.query(Video).filter(Video.video_id == video_id).first()
     if not video:
+        logger.warning("Video detail requested but not found", extra={"video_id": video_id})
         raise HTTPException(HTTPStatus.NOT_FOUND, "Video no encontrado")
 
     processed_base_url = get_processed_videos_url(request)
@@ -244,6 +288,14 @@ async def get_video_detail(
         db.query(func.count(Vote.id)).filter(Vote.video_id == video.id).scalar() or 0
     )
 
+    logger.debug(
+        "Video detail fetched",
+        extra={
+            "video_id": video.video_id,
+            "status": video.status,
+            "votes": votes_count,
+        },
+    )
     return VideoDetailResponse(
         video_id=video.video_id,
         title=video.title,
@@ -269,12 +321,21 @@ async def delete_video(
     current_user = request.state.user
     video = db.query(Video).filter(Video.video_id == video_id).first()
     if not video:
+        logger.warning("Delete attempted on missing video", extra={"video_id": video_id})
         raise HTTPException(HTTPStatus.NOT_FOUND, "Video no encontrado")
     if video.user_id != current_user.id:
+        logger.warning(
+            "Delete forbidden for user",
+            extra={"video_id": video_id, "user_id": current_user.id},
+        )
         raise HTTPException(
             HTTPStatus.FORBIDDEN, "No tiene permisos para eliminar este video"
         )
     if getattr(video, "is_public", False):
+        logger.info(
+            "Delete blocked because video is public",
+            extra={"video_id": video_id, "user_id": current_user.id},
+        )
         raise HTTPException(
             HTTPStatus.BAD_REQUEST,
             "El video ya está habilitado para votación y no puede eliminarse",
@@ -284,15 +345,25 @@ async def delete_video(
         if video.original_path:
             Path(video.original_path).unlink(missing_ok=True)
     except Exception:
-        pass
+        logger.exception(
+            "Failed to remove original video file",
+            extra={"video_id": video_id, "path": video.original_path},
+        )
     try:
         if video.processed_path:
             Path(video.processed_path).unlink(missing_ok=True)
     except Exception:
-        pass
+        logger.exception(
+            "Failed to remove processed video file",
+            extra={"video_id": video_id, "path": video.processed_path},
+        )
 
     db.delete(video)
     db.commit()
+    logger.info(
+        "Video deleted",
+        extra={"video_id": video_id, "user_id": current_user.id},
+    )
 
     return DeleteVideoResponse(
         message="El video ha sido eliminado exitosamente.", video_id=video_id

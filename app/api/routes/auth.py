@@ -9,14 +9,26 @@ from app.core.database import get_db
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models import User
 
+import logging
+
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.post("/signup", status_code=201)
 def signup(payload: UserCreate, db: Session = Depends(get_db)):
+    logger.debug("Signup request received", extra={"email": payload.email})
     if db.query(User).filter(User.email == payload.email).first():
+        logger.warning(
+            "Signup attempted with existing email",
+            extra={"email": payload.email},
+        )
         raise HTTPException(HTTPStatus.BAD_REQUEST, "El email ya esta registrado")
     if payload.password1 != payload.password2:
+        logger.warning(
+            "Signup password mismatch",
+            extra={"email": payload.email},
+        )
         raise HTTPException(HTTPStatus.BAD_REQUEST, "Las contraseñas no coinciden")
     u = User(
         email=payload.email,
@@ -29,6 +41,8 @@ def signup(payload: UserCreate, db: Session = Depends(get_db)):
     db.add(u)
     db.commit()
     db.refresh(u)
+
+    logger.info("Signup completed", extra={"user_id": u.id, "email": payload.email})
     return {"id": u.id, "email": u.email}
 
 
@@ -46,9 +60,15 @@ async def login(request: Request, db: Session = Depends(get_db)):
         email = form.get("username")
         password = form.get("password")
     user = db.query(User).filter(User.email == email).first()
+    logger.debug(
+        "Login attempt",
+        extra={"email": email, "found_user": bool(user)},
+    )
     if not user or not verify_password(password, user.hashed_password):
+        logger.warning("Invalid login credentials", extra={"email": email})
         raise HTTPException(HTTPStatus.UNAUTHORIZED, "Credenciales invalidas")
     token = create_access_token({"sub": str(user.id)})
+    logger.info("Login successful", extra={"user_id": user.id, "email": email})
     return {
         "access_token": token,
         "token_type": "bearer",

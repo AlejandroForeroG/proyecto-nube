@@ -1,5 +1,5 @@
 ## Proyecto: Plataforma de procesamiento de videos (FastAPI + Celery + Nginx)
-### Imtegrantes 
+### Integrantes
 - Alejandro Forero Gomez
 - David Armando Rodríguez Varón
 - Juan Sebastián Sánchez Tabares
@@ -8,7 +8,7 @@
 ### Entregas
 - Semana 1: [Documento de la entrega](./docs/entregas/semana_1/semana_1.md)
 - Semana 2: [Arquitectura ajustada (EC2 + NFS + RDS)](./docs/entregas/entrega_2/entrega_2.md)
-## Documentación 
+## Documentación
 ### 1) Estructura del proyecto y cómo funciona cada parte
 
 ```
@@ -29,6 +29,7 @@ proyecto-nube/
     celery_worker.py         # Worker Celery que procesa videos en background
     main.py                  # Aplicación FastAPI y registro de routers
     alembic/                 # Migraciones de base de datos
+    cloudwatch/              # Configuración de Cloudwatch
   assets/                    # Recursos (watermark, intro/outro)
   uploads/                   # Subidas originales (montado en contenedores)
   processed/                 # Videos procesados (expuestos por Nginx)
@@ -63,6 +64,10 @@ REDIS_URL=redis://redis:6379/0
 SECRET_KEY=supersecret
 TESTING=false
 CELERY_EAGER=0
+AWS_ACCESS_KEY_ID=KEY_ID_EXAMPLE
+AWS_SECRET_ACCESS_KEY=SECRET_ACCESS_EXAMPLE
+AWS_SESSION_TOKEN=SESSION_TOKEN_EXAMPLE
+AWS_REGION=us-east-1
 ```
 2. Construir e iniciar servicios:
 ```bash

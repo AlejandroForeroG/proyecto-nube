@@ -18,6 +18,9 @@ services:
     platform: linux/amd64
     container_name: celery_worker
     env_file: .env
+    environment:
+      CLOUDWATCH_LOG_GROUP: "/worker/logs"
+      CLOUDWATCH_STREAM_PREFIX: "worker"
     command: celery -A app.celery_worker.celery_app worker --loglevel=info --concurrency=1 --prefetch-multiplier=1
     volumes:
       - ./app:/my-app/app
