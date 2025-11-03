@@ -1,4 +1,5 @@
 import logging
+import os
 
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import request_validation_exception_handler
@@ -7,6 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator, metrics
 
 from app.api.routes import auth, public, videos
+
+if os.getenv("ENABLE_CW_LOGS", "true").lower() == "true":
+    from app.cloudwatch.LogsHandler import configure_logging
+    configure_logging()
 
 app = FastAPI(title="API", description="1.0.0")
 
@@ -46,6 +51,7 @@ Instrumentator().add(
     )
 ).add(metrics.requests()).instrument(app).expose(app)
 
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
@@ -82,7 +88,8 @@ async def _error_logger(request: Request, exc: Exception):
         from fastapi.exception_handlers import request_validation_exception_handler
         return await request_validation_exception_handler(request, exc)
     else:
-        tb_str = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+        tb_str = "".join(traceback.format_exception(
+            type(exc), exc, exc.__traceback__))
         logger.error(
             "Exception on %s %s | type=%s | detail=%s | body=%s\nTraceback:\n%s",
             request.method,
