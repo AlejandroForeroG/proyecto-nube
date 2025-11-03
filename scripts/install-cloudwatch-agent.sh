@@ -74,7 +74,7 @@ STATUS_OUTPUT=$(sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agen
     -a status \
     -m ec2)
 
-if echo "$STATUS_OUTPUT" | grep -q '"status":"running"'; then
+if echo "$STATUS_OUTPUT" | grep -q '"status".*:.*"running"'; then
     echo "CloudWatch Agent is running"
 else
     echo "CloudWatch Agent failed to start"
