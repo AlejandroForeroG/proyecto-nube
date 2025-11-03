@@ -30,15 +30,32 @@ CONFIG_DEST="/opt/aws/amazon-cloudwatch-agent/etc/cloudwatch-agent-config.json"
 sudo cp "$CONFIG_SOURCE" "$CONFIG_DEST"
 echo "Configuration file copied to $CONFIG_DEST"
 
-# Verificar credenciales AWS
 echo
-echo "==> Verifying AWS credentials..."
-if aws sts get-caller-identity &> /dev/null; then
-    echo "AWS credentials are valid"
+echo "==> Loading AWS credentials from .env..."
+if [ -f ".env" ]; then
+    export $(grep -E '^AWS_ACCESS_KEY_ID=' .env | xargs)
+    export $(grep -E '^AWS_SECRET_ACCESS_KEY=' .env | xargs)
+    export $(grep -E '^AWS_SESSION_TOKEN=' .env | xargs)
+    export $(grep -E '^AWS_REGION=' .env | xargs)
+
+    # Crear archivo de credenciales para CloudWatch Agent
+    sudo mkdir -p /root/.aws
+    sudo tee /root/.aws/credentials > /dev/null <<EOF
+[AmazonCloudWatchAgent]
+aws_access_key_id = ${AWS_ACCESS_KEY_ID}
+aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
+aws_session_token = ${AWS_SESSION_TOKEN}
+EOF
+
+    sudo tee /root/.aws/config > /dev/null <<EOF
+[profile AmazonCloudWatchAgent]
+region = ${AWS_REGION:-us-east-1}
+EOF
+
+    echo "AWS credentials configured for CloudWatch Agent"
 else
-    echo "AWS credentials not configured or expired"
-    echo "Make sure your .env has valid AWS credentials"
-    exit 1
+    echo "Warning: .env file not found"
+    echo "CloudWatch Agent will use instance IAM role if available"
 fi
 
 echo
