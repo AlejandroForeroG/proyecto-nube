@@ -1,6 +1,7 @@
 # app/core/logging.py
 import logging
 import os
+
 import boto3
 from botocore.exceptions import ClientError
 
@@ -50,20 +51,17 @@ class CloudWatchLogsHandler(logging.Handler):
             response = self.client.put_log_events(**kwargs)
             self.sequence_token = response.get("nextSequenceToken")
         except self.client.exceptions.InvalidSequenceTokenException as exc:
-            self.sequence_token = exc.response["Error"]["Message"].rsplit(
-                " ", 1)[-1]
+            self.sequence_token = exc.response["Error"]["Message"].rsplit(" ", 1)[-1]
             self.emit(record)
 
 
 def configure_logging():
     region = os.getenv("AWS_REGION", "us-east-1")
-    group = os.getenv("CLOUDWATCH_LOG_GROUP", "/server/api")
-    stream = os.getenv("HOSTNAME", "local")
+    group = os.getenv("CLOUDWATCH_LOG_GROUP", "server")
+    stream = os.getenv("ENVIRONMENT", "local")
     handler = CloudWatchLogsHandler(group, stream, region)
     handler.set_name("cloudwatch-handler")
-    formatter = logging.Formatter(
-        "%(asctime)s %(levelname)s [%(name)s] %(message)s"
-    )
+    formatter = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
     handler.setFormatter(formatter)
 
     console_handler = logging.StreamHandler()

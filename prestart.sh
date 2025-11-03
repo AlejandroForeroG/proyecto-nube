@@ -10,16 +10,14 @@ set -eu
 
 : "${ENABLE_CW_LOGS:=true}"
 : "${AWS_REGION:=us-east-1}"
-: "${CLOUDWATCH_LOG_GROUP:=/server/api}"
-: "${CLOUDWATCH_STREAM_PREFIX:=api}"
+: "${CLOUDWATCH_LOG_GROUP:=server}"
 
 
 export FORWARDED_ALLOW_IPS \
        ENABLE_CW_LOGS \
        AWS_REGION \
-       CLOUDWATCH_LOG_GROUP \
-       CLOUDWATCH_STREAM_PREFIX
-
+       CLOUDWATCH_LOG_GROUP
+       
 exec gunicorn \
   -k uvicorn.workers.UvicornWorker \
   --workers "$WORKERS" \
