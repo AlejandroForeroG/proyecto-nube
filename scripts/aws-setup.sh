@@ -172,6 +172,15 @@ $SUDO chown root:docker /var/run/docker.sock || true
 $SUDO chmod 660 /var/run/docker.sock || true
 
 echo
+echo "==> Setting up CloudWatch Agent..."
+if [ -f "$PROJECT_DIR/scripts/install-cloudwatch-agent.sh" ]; then
+    cd "$PROJECT_DIR"
+    bash scripts/install-cloudwatch-agent.sh
+else
+    echo "CloudWatch Agent installation script not found"
+fi
+
+echo
 echo "===================== SUMMARY ====================="
 echo "Python:      $(python3 --version 2>/dev/null || echo 'not found')"
 echo "Docker:      $(docker --version 2>/dev/null || echo 'not found')"
@@ -179,6 +188,7 @@ echo "Compose:     $(docker compose version 2>/dev/null || echo 'not found')"
 echo "Git:         $(git --version 2>/dev/null || echo 'not found')"
 echo "Node:        $($SUDO -u "${SUDO_USER:-$USER}" bash -lc 'node -v' 2>/dev/null || echo 'reload shell')"
 echo "NFS Role:    $NFS_ROLE"
+echo "CloudWatch Agent:    $(command -v amazon-cloudwatch-agent-ctl &> /dev/null && echo 'installed' || echo 'not installed')"
 echo "==================================================="
 
 # ---------- NFS Setup ----------

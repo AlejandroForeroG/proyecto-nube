@@ -1,16 +1,18 @@
 import logging
 import os
+import time
 
 from fastapi import FastAPI, Request
-from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator, metrics
 
 from app.api.routes import auth, public, videos
+from app.cloudwatch.MetricsHandler import get_metrics
 
 if os.getenv("ENABLE_CW_LOGS", "true").lower() == "true":
     from app.cloudwatch.LogsHandler import configure_logging
+
     configure_logging()
 
 app = FastAPI(title="API", description="1.0.0")
@@ -52,6 +54,49 @@ Instrumentator().add(
 ).add(metrics.requests()).instrument(app).expose(app)
 
 
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    start_time = time.time()
+
+    try:
+        response = await call_next(request)
+
+        duration = time.time() - start_time
+
+        metrics = get_metrics()
+        metrics.put_metric(
+            "RequestLatency",
+            duration * 1000,
+            "Milliseconds",
+            dimensions={
+                "Method": request.method,
+                "Path": request.url.path,
+                "StatusCode": str(response.status_code),
+            },
+        )
+
+        metrics.increment_counter(
+            "Requests",
+            dimensions={
+                "Method": request.method,
+                "StatusCode": str(response.status_code),
+            },
+        )
+
+        return response
+    except Exception as e:
+        metrics = get_metrics()
+        metrics.increment_counter(
+            "Errors",
+            dimensions={
+                "Method": request.method,
+                "Path": request.url.path,
+                "ErrorType": type(e).__name__,
+            },
+        )
+        raise
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
@@ -62,8 +107,9 @@ logger = logging.getLogger("uvicorn.error")
 
 @app.exception_handler(Exception)
 async def _error_logger(request: Request, exc: Exception):
-    from fastapi.responses import JSONResponse
     import traceback
+
+    from fastapi.responses import JSONResponse
 
     try:
         body = await request.json()
@@ -86,10 +132,10 @@ async def _error_logger(request: Request, exc: Exception):
                 body,
             )
         from fastapi.exception_handlers import request_validation_exception_handler
+
         return await request_validation_exception_handler(request, exc)
     else:
-        tb_str = "".join(traceback.format_exception(
-            type(exc), exc, exc.__traceback__))
+        tb_str = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
         logger.error(
             "Exception on %s %s | type=%s | detail=%s | body=%s\nTraceback:\n%s",
             request.method,
@@ -104,6 +150,6 @@ async def _error_logger(request: Request, exc: Exception):
             content={
                 "error": type(exc).__name__,
                 "detail": str(exc),
-                "traceback": tb_str
+                "traceback": tb_str,
             },
         )
