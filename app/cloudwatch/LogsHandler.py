@@ -21,6 +21,11 @@ class CloudWatchLogsHandler(logging.Handler):
         except ClientError as exc:
             if exc.response["Error"]["Code"] != "ResourceAlreadyExistsException":
                 raise
+        except Exception as exc:
+            # Catch botocore.errorfactory exceptions that aren't ClientError subclasses
+            if "ResourceAlreadyExistsException" not in str(type(exc).__name__):
+                raise
+
         try:
             self.client.create_log_stream(
                 logGroupName=self.group, logStreamName=self.stream
@@ -36,6 +41,16 @@ class CloudWatchLogsHandler(logging.Handler):
                     self.sequence_token = streams[0].get("uploadSequenceToken")
             else:
                 raise
+        except Exception as exc:
+            if "ResourceAlreadyExistsException" not in str(type(exc).__name__):
+                raise
+            streams = self.client.describe_log_streams(
+                logGroupName=self.group,
+                logStreamNamePrefix=self.stream,
+                limit=1,
+            )["logStreams"]
+            if streams:
+                self.sequence_token = streams[0].get("uploadSequenceToken")
 
     def emit(self, record):
         message = self.format(record)
