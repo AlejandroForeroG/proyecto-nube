@@ -5,6 +5,8 @@
 
 set -euo pipefail
 
+INSTALL_CLOUDWATCH=false
+
 # ---------- Helpers ----------
 need_sudo() {
   if [ "$EUID" -ne 0 ]; then
@@ -24,16 +26,18 @@ append_once() {
 
 usage() {
   cat <<EOF
-Usage: $0 --nfs-role <client|server|none>
+Usage: $0 --nfs-role <client|server|none> [--cloudwatch]
 
 Opciones:
   --nfs-role client   Ejecuta nfs-client-mount.sh al final (para instancias app/worker)
   --nfs-role server   Ejecuta nfs-server-mount.sh al final (para instancia file-server)
   --nfs-role none     No configura NFS (para desarrollo local)
+  --cloudwatch        Instala y configura CloudWatch Agent para métricas
 
 Ejemplo:
   sudo ./scripts/aws-setup.sh --nfs-role client
   sudo ./scripts/aws-setup.sh --nfs-role server
+  sudo ./scripts/aws-setup.sh --nfs-role none --cloudwatch
 EOF
   exit 1
 }
@@ -45,6 +49,10 @@ while [[ $# -gt 0 ]]; do
     --nfs-role)
       NFS_ROLE="$2"
       shift 2
+      ;;
+    --cloudwatch)
+      INSTALL_CLOUDWATCH=true
+      shift
       ;;
     -h|--help)
       usage
@@ -171,6 +179,17 @@ echo "==> Fixing Docker socket permissions..."
 $SUDO chown root:docker /var/run/docker.sock || true
 $SUDO chmod 660 /var/run/docker.sock || true
 
+if [ "$INSTALL_CLOUDWATCH" = true ]; then
+  echo
+  echo "==> Setting up CloudWatch Agent..."
+  if [ -f "$PROJECT_DIR/scripts/install-cloudwatch-agent.sh" ]; then
+      cd "$PROJECT_DIR"
+      bash scripts/install-cloudwatch-agent.sh
+  else
+      echo "CloudWatch Agent installation script not found"
+  fi
+fi
+
 echo
 echo "===================== SUMMARY ====================="
 echo "Python:      $(python3 --version 2>/dev/null || echo 'not found')"
@@ -179,6 +198,9 @@ echo "Compose:     $(docker compose version 2>/dev/null || echo 'not found')"
 echo "Git:         $(git --version 2>/dev/null || echo 'not found')"
 echo "Node:        $($SUDO -u "${SUDO_USER:-$USER}" bash -lc 'node -v' 2>/dev/null || echo 'reload shell')"
 echo "NFS Role:    $NFS_ROLE"
+if [ "$INSTALL_CLOUDWATCH" = true ]; then
+  echo "CloudWatch:  $(command -v amazon-cloudwatch-agent-ctl &> /dev/null && echo 'installed' || echo 'not installed')"
+fi
 echo "==================================================="
 
 # ---------- NFS Setup ----------

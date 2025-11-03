@@ -1,0 +1,81 @@
+{
+  "agent": {
+    "metrics_collection_interval": 10,
+    "run_as_user": "root"
+  },
+  "metrics": {
+    "namespace": "ProyectoNube/EC2",
+    "metrics_collected": {
+      "cpu": {
+        "measurement": [
+          {
+            "name": "cpu_usage_idle",
+            "rename": "CPU_IDLE",
+            "unit": "Percent"
+          },
+          {
+            "name": "cpu_usage_iowait",
+            "rename": "CPU_IOWAIT",
+            "unit": "Percent"
+          },
+          {
+            "name": "cpu_usage_system",
+            "rename": "CPU_SYSTEM",
+            "unit": "Percent"
+          },
+          {
+            "name": "cpu_usage_user",
+            "rename": "CPU_USER",
+            "unit": "Percent"
+          }
+        ],
+        "metrics_collection_interval": 10,
+        "totalcpu": true
+      },
+      "disk": {
+        "measurement": [
+          {
+            "name": "used_percent",
+            "rename": "DISK_USED",
+            "unit": "Percent"
+          },
+          "free",
+          "total"
+        ],
+        "metrics_collection_interval": 10,
+        "resources": ["/"]
+      },
+      "mem": {
+        "measurement": [
+          {
+            "name": "mem_used_percent",
+            "rename": "MEM_USED",
+            "unit": "Percent"
+          },
+          "mem_available",
+          "mem_used",
+          "mem_total"
+        ],
+        "metrics_collection_interval": 10
+      },
+      "netstat": {
+        "measurement": ["tcp_established", "tcp_time_wait"],
+        "metrics_collection_interval": 10
+      },
+      "swap": {
+        "measurement": [
+          {
+            "name": "swap_used_percent",
+            "rename": "SWAP_USED",
+            "unit": "Percent"
+          }
+        ],
+        "metrics_collection_interval": 10
+      }
+    },
+    "append_dimensions": {
+      "InstanceId": "${aws:InstanceId}",
+      "InstanceType": "${aws:InstanceType}"
+    }
+  }
+}
