@@ -38,7 +38,6 @@ if [ -f ".env" ]; then
     export $(grep -E '^AWS_SESSION_TOKEN=' .env | xargs)
     export $(grep -E '^AWS_REGION=' .env | xargs)
 
-    # Crear archivo de credenciales para CloudWatch Agent
     sudo mkdir -p /root/.aws
     sudo tee /root/.aws/credentials > /dev/null <<EOF
 [AmazonCloudWatchAgent]
@@ -52,6 +51,16 @@ EOF
 region = ${AWS_REGION:-us-east-1}
 EOF
 
+    sudo tee /opt/aws/amazon-cloudwatch-agent/etc/common-config.toml > /dev/null <<EOF
+[credentials]
+  shared_credential_profile = "AmazonCloudWatchAgent"
+  shared_credential_file = "/root/.aws/credentials"
+
+[proxy]
+
+[ssl]
+EOF
+
     echo "AWS credentials configured for CloudWatch Agent"
 else
     echo "Warning: .env file not found"
@@ -59,8 +68,21 @@ else
 fi
 
 echo
-echo "==> Starting CloudWatch Agent..."
+echo "==> Stopping CloudWatch Agent (if running)..."
 sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+    -a stop \
+    -m ec2 2>/dev/null || true
+
+sleep 2
+
+echo
+echo "==> Starting CloudWatch Agent with credentials..."
+
+sudo AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" \
+     AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" \
+     AWS_SESSION_TOKEN="${AWS_SESSION_TOKEN}" \
+     AWS_REGION="${AWS_REGION:-us-east-1}" \
+     /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
     -a fetch-config \
     -m ec2 \
     -s \
@@ -75,9 +97,9 @@ STATUS_OUTPUT=$(sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agen
     -m ec2)
 
 if echo "$STATUS_OUTPUT" | grep -q '"status".*:.*"running"'; then
-    echo "CloudWatch Agent is running"
+    echo "✓ CloudWatch Agent is running"
 else
-    echo "CloudWatch Agent failed to start"
+    echo "❌ CloudWatch Agent failed to start"
     echo
     echo "Status output:"
     echo "$STATUS_OUTPUT"
@@ -85,8 +107,22 @@ else
 fi
 
 echo
+echo "==> Verifying metrics collection..."
+echo "Waiting 10 seconds for initial metrics..."
+sleep 10
+
+# Verificar logs del agente
+if sudo grep -q "NoCredentialProviders" /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log; then
+    echo "Warning: Credential errors still present in logs"
+    echo "Check the last 20 lines of the log:"
+    sudo tail -20 /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log
+else
+    echo "No credential errors in recent logs"
+fi
+
+echo
 echo "=========================================="
-echo "Installation completed successfully!"
+echo "  Installation completed successfully!"
 echo "=========================================="
 echo
 echo "Metrics will be sent to:"
@@ -101,4 +137,7 @@ echo "  - SWAP_USED (percentage)"
 echo "  - tcp_established, tcp_time_wait"
 echo
 echo "Wait 2-3 minutes for metrics to appear in CloudWatch"
+echo
+echo "To verify metrics are being sent, run:"
+echo "  sudo tail -f /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log"
 echo
