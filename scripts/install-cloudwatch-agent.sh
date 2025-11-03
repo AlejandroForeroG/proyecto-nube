@@ -61,7 +61,22 @@ EOF
 [ssl]
 EOF
 
+    sudo mkdir -p /etc/systemd/system/amazon-cloudwatch-agent.service.d
+    sudo tee /etc/systemd/system/amazon-cloudwatch-agent.service.d/override.conf > /dev/null <<EOF
+[Service]
+Environment="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
+Environment="AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
+Environment="AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}"
+Environment="AWS_REGION=${AWS_REGION:-us-east-1}"
+Environment="AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials"
+Environment="AWS_CONFIG_FILE=/root/.aws/config"
+Environment="AWS_PROFILE=AmazonCloudWatchAgent"
+EOF
+
+    sudo systemctl daemon-reload
+
     echo "AWS credentials configured for CloudWatch Agent"
+    echo "Note: AWS Academy credentials expire after 4 hours"
 else
     echo "Warning: .env file not found"
     echo "CloudWatch Agent will use instance IAM role if available"
@@ -78,11 +93,7 @@ sleep 2
 echo
 echo "==> Starting CloudWatch Agent with credentials..."
 
-sudo AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" \
-     AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" \
-     AWS_SESSION_TOKEN="${AWS_SESSION_TOKEN}" \
-     AWS_REGION="${AWS_REGION:-us-east-1}" \
-     /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
     -a fetch-config \
     -m ec2 \
     -s \
@@ -97,9 +108,9 @@ STATUS_OUTPUT=$(sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agen
     -m ec2)
 
 if echo "$STATUS_OUTPUT" | grep -q '"status".*:.*"running"'; then
-    echo "✓ CloudWatch Agent is running"
+    echo "CloudWatch Agent is running"
 else
-    echo "❌ CloudWatch Agent failed to start"
+    echo "CloudWatch Agent failed to start"
     echo
     echo "Status output:"
     echo "$STATUS_OUTPUT"
@@ -108,26 +119,31 @@ fi
 
 echo
 echo "==> Verifying metrics collection..."
-echo "Waiting 10 seconds for initial metrics..."
-sleep 10
+echo "Waiting 15 seconds for initial metrics..."
+sleep 15
 
-# Verificar logs del agente
-if sudo grep -q "NoCredentialProviders" /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log; then
-    echo "Warning: Credential errors still present in logs"
-    echo "Check the last 20 lines of the log:"
-    sudo tail -20 /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log
-else
+echo
+echo "==> Checking for errors in logs..."
+RECENT_ERRORS=$(sudo tail -50 /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log | grep -i "error\|credential" | tail -5)
+
+if [ -z "$RECENT_ERRORS" ]; then
     echo "No credential errors in recent logs"
+else
+    echo "Recent log entries:"
+    echo "$RECENT_ERRORS"
+    echo
+    echo "If you see credential errors, your AWS Academy session may have expired."
+    echo "Update credentials in .env and re-run this script."
 fi
 
 echo
 echo "=========================================="
-echo "  Installation completed successfully!"
+echo "Installation completed successfully!"
 echo "=========================================="
 echo
 echo "Metrics will be sent to:"
 echo "  Namespace: ProyectoNube/EC2"
-echo "  Region: us-east-1"
+echo "  Region: ${AWS_REGION:-us-east-1}"
 echo
 echo "Available metrics:"
 echo "  - CPU_IDLE, CPU_IOWAIT, CPU_SYSTEM, CPU_USER"
@@ -136,8 +152,15 @@ echo "  - DISK_USED (percentage)"
 echo "  - SWAP_USED (percentage)"
 echo "  - tcp_established, tcp_time_wait"
 echo
+echo "IMPORTANT: AWS Academy credentials expire after 3  hours"
+echo "   If metrics stop being sent, update .env with new credentials"
+echo "   and re-run this script: sudo bash scripts/install-cloudwatch-agent.sh"
+echo
 echo "Wait 2-3 minutes for metrics to appear in CloudWatch"
 echo
-echo "To verify metrics are being sent, run:"
+echo "To monitor in real-time:"
 echo "  sudo tail -f /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log"
+echo
+echo "To verify metrics are being sent (after 3 minutes):"
+echo "  docker exec rest_api bash -c 'aws cloudwatch list-metrics --namespace ProyectoNube/EC2 --region us-east-1 | head -20'"
 echo
