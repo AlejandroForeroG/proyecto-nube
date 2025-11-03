@@ -71,9 +71,8 @@ echo "==> Checking agent status..."
 sleep 3
 
 STATUS_OUTPUT=$(sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
-    -a query \
-    -m ec2 \
-    -c default)
+    -a status \
+    -m ec2)
 
 if echo "$STATUS_OUTPUT" | grep -q '"status":"running"'; then
     echo "CloudWatch Agent is running"
