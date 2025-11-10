@@ -1,5 +1,6 @@
 ## Entrega 3 – Arquitectura Ajustada (Escalabilidad en la Capa Web)
-
+### Video 
+[link video](https://drive.google.com/file/d/15Z4Oqb6sqETkjekoEOlM91yxWHepG3at/view?usp=sharing)
 ### 1) Resumen
 Se incorpora un balanceador de carga (ALB), un grupo de autoescalado (ASG) para la capa web con máximo de 3 instancias, almacenamiento de objetos en Amazon S3 para originales y procesados, y monitoreo en Amazon CloudWatch. La base de datos se ejecuta en Amazon RDS (PostgreSQL); en fases iniciales puede usarse una instancia EC2 y migrar a RDS para pruebas de carga. Se preparan AMIs para la capa web y la capa worker y se registran en grupos de destino del ALB. Para laboratorio se utilizaron instancias t3.micro (sujeto a ajuste dependiendo de la carga).
 
