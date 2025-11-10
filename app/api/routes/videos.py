@@ -25,6 +25,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.core.storage import get_storage
+from app.core.storage import is_s3_uri, generate_presigned_get_url
 from app.models import User, Video, VideoStatus, Vote
 from app.models.models import UTC
 import os
@@ -72,12 +73,17 @@ async def upload_video(
         )
 
     original_rel = f"{video_uuid}_original{ext}"
-    storage_backend = os.getenv("STORAGE_BACKEND", "local")
-    storage = get_storage(base_dir=settings.UPLOAD_PATH, storage_backend="local")
+    storage_backend = os.getenv("STORAGE_BACKEND", settings.STORAGE_BACKEND)
+    storage = get_storage(base_dir=settings.UPLOAD_PATH, storage_backend=storage_backend)
     try:
+        dest_path = (
+            f"{settings.S3_UPLOAD_PREFIX}/{original_rel}"
+            if storage_backend == "s3"
+            else original_rel
+        )
         saved_path = await storage.save_async(
             video_file,
-            original_rel,
+            dest_path,
             chunk_size=CHUNK_SIZE,
             max_size=settings.MAX_FILE_SIZE,
         )
@@ -140,12 +146,17 @@ async def upload_video_mock(
         )
 
     original_rel = f"{video_uuid}_original{ext}"
-    storage_backend = os.getenv("STORAGE_BACKEND", "local")
+    storage_backend = os.getenv("STORAGE_BACKEND", settings.STORAGE_BACKEND)
     storage = get_storage(base_dir=settings.UPLOAD_PATH, storage_backend=storage_backend)
     try:
+        dest_path = (
+            f"{settings.S3_UPLOAD_PREFIX}/{original_rel}"
+            if storage_backend == "s3"
+            else original_rel
+        )
         saved_path = await storage.save_async(
             video_file,
-            original_rel,
+            dest_path,
             chunk_size=CHUNK_SIZE,
             max_size=settings.MAX_FILE_SIZE,
         )
@@ -198,7 +209,9 @@ async def get_user_videos(
     response: List[UserVideoResponse] = []
     for v in videos:
         processed_url = None
-        if v.processed_path:
+        if v.processed_path and is_s3_uri(v.processed_path):
+            processed_url = generate_presigned_get_url(v.processed_path)
+        elif v.processed_path:
             processed_url = f"{processed_base_url}{Path(v.processed_path).name}"
 
         response.append(
@@ -231,12 +244,17 @@ async def get_video_detail(
     processed_base_url = get_processed_videos_url(request)
 
     original_url = None
-    if video.original_path:
+    if video.original_path and is_s3_uri(video.original_path):
+        original_url = generate_presigned_get_url(video.original_path)
+    elif video.original_path:
         original_url = f"{processed_base_url}/{Path(video.original_path).name}"
 
     processed_url = None
     processed_at = None
-    if video.processed_path:
+    if video.processed_path and is_s3_uri(video.processed_path):
+        processed_url = generate_presigned_get_url(video.processed_path)
+        processed_at = video.updated_at
+    elif video.processed_path:
         processed_url = f"{processed_base_url}/{Path(video.processed_path).name}"
         processed_at = video.updated_at
 

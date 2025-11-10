@@ -16,4 +16,10 @@ class Settings(BaseSettings):
     TESTING: bool = False
     CELERY_EAGER: bool = False
     ASSETS_DIR: str = "assets"
+    STORAGE_BACKEND: str = "s3"  # options: s3 | nfs | local
+    AWS_REGION: str | None = None
+    AWS_S3_BUCKET: str | None = None
+    S3_UPLOAD_PREFIX: str = "uploads"
+    S3_PROCESSED_PREFIX: str = "processed"
+    S3_URL_EXPIRE_SECONDS: int = 3600
 settings = Settings()

@@ -2,6 +2,7 @@ import os
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+import shutil
 
 from celery import Celery
 
@@ -9,6 +10,8 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.utils import video_utils as vu
 from app.models import Video, VideoStatus
+from app.core.storage import is_s3_uri, parse_s3_uri
+import boto3
 
 UTC = timezone.utc
 
@@ -41,21 +44,48 @@ INTRO_OUTRO_IMG = ASSETS_DIR / INTRO_OUTRO_FILENAME
 
 
 def process_video(video_db_id: int, original_path: str):
-    final_out = os.path.join(settings.PROCESSED_PATH, f"{video_db_id}_processed.mp4")
-    Path(settings.PROCESSED_PATH).mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
+        local_input = td / "input.mp4"
         trimmed = td / "trimmed.mp4"
         v720 = td / "v720.mp4"
         muted = td / "muted.mp4"
         wm = td / "wm.mp4"
+        final_tmp = td / "final.mp4"
 
-        vu.trim_to_seconds(original_path, str(trimmed), seconds=30)
+        s3_bucket = None
+        s3_key = None
+        if is_s3_uri(original_path):
+            s3_bucket, s3_key = parse_s3_uri(original_path)
+            s3_client = boto3.client("s3", region_name=settings.AWS_REGION)
+            s3_client.download_file(s3_bucket, s3_key, str(local_input))
+        else:
+            local_input = Path(original_path)
+
+        vu.trim_to_seconds(str(local_input), str(trimmed), seconds=30)
         vu.scale_to_720p(str(trimmed), str(v720))
         vu.remove_audio(str(v720), str(muted), reencode=False)
         vu.add_watermark(str(muted), str(wm), watermark_path=str(Path(WATERMARK)))
-        vu.add_image_intro_outro(str(Path(INTRO_OUTRO_IMG)), str(wm), final_out)
-        return final_out
+        vu.add_image_intro_outro(str(Path(INTRO_OUTRO_IMG)), str(wm), str(final_tmp))
+
+
+        if s3_bucket:
+            dest_key = f"{settings.S3_PROCESSED_PREFIX}/{video_db_id}_processed.mp4"
+            s3_client.upload_file(str(final_tmp), s3_bucket, dest_key)
+        
+            if s3_key:
+                try:
+                    s3_client.delete_object(Bucket=s3_bucket, Key=s3_key)
+                except Exception as delete_exc:
+                    print(f"Error al eliminar original S3 s3://{s3_bucket}/{s3_key}: {delete_exc}")
+            return f"s3://{s3_bucket}/{dest_key}"
+        else:
+            final_out = os.path.join(
+                settings.PROCESSED_PATH, f"{video_db_id}_processed.mp4"
+            )
+            Path(settings.PROCESSED_PATH).mkdir(parents=True, exist_ok=True)
+            shutil.move(str(final_tmp), final_out)
+            return final_out
 
 
 @celery_app.task(bind=True, max_retries=3, soft_time_limit=600, time_limit=1200)
