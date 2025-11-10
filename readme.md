@@ -8,6 +8,7 @@
 ### Entregas
 - Semana 1: [Documento de la entrega](./docs/entregas/semana_1/semana_1.md)
 - Semana 2: [Arquitectura ajustada (EC2 + NFS + RDS)](./docs/entregas/entrega_2/entrega_2.md)
+- Semana 3: [Arquitectura ajustada (Auto Scaling + ALB + S3 + CloudWatch)](./docs/entregas/entrega_3/entrega_3.md)
 ## Documentación 
 ### 1) Estructura del proyecto y cómo funciona cada parte
 
@@ -181,6 +182,7 @@ python inject_worker_tasks.py --count 100 --size 50MB --mode burst --monitor
 
 - **Guía de Load Testing**: [load_tests/README.md](load_tests/README.md)
 - **Análisis de Capacidad**: [docs/entregas/entrega_1/analisis_capacidad.md](docs/entregas/entrega_1/analisis_capacidad.md)
+- **Análisis de Capacidad (Entrega 3)**: [capacity-planning/pruebas_de_carga_entrega3.md](capacity-planning/pruebas_de_carga_entrega3.md)
 
 #### Ajustar Concurrencia de Workers
 
