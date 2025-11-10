@@ -7,6 +7,7 @@
 
 ### Entregas
 - Semana 1: [Documento de la entrega](./docs/entregas/semana_1/semana_1.md)
+- Semana 2: [Arquitectura ajustada (EC2 + NFS + RDS)](./docs/entregas/entrega_2/entrega_2.md)
 ## Documentación 
 ### 1) Estructura del proyecto y cómo funciona cada parte
 
@@ -194,4 +195,24 @@ Luego reiniciar:
 ```bash
 docker compose restart celery_worker
 ```
+
+### 7) Almacenamiento en S3 (Cloud)
+
+Para entornos en la nube, habilita S3 como backend de almacenamiento (bucket privado con URLs prefirmadas):
+
+1. Configura `.env`:
+
+```
+STORAGE_BACKEND=s3
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=tu-bucket
+S3_UPLOAD_PREFIX=uploads
+S3_PROCESSED_PREFIX=processed
+S3_URL_EXPIRE_SECONDS=3600
+
+2. Flujo con S3:
+   - La API sube el original a `s3://{bucket}/{S3_UPLOAD_PREFIX}/...`.
+   - El worker descarga el original desde S3, procesa localmente y sube el final a `s3://{bucket}/{S3_PROCESSED_PREFIX}/...`.
+   - El original en S3 se elimina tras el procesamiento exitoso.
+   - Los endpoints devuelven URLs prefirmadas que expiran en `S3_URL_EXPIRE_SECONDS`.
 

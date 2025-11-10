@@ -1,0 +1,13 @@
+name: file-server
+services:
+  nfs:
+    image: itsthenetwork/nfs-server-alpine:latest
+    container_name: nfs_server
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    environment:
+      - SHARED_DIRECTORY=/exports
+      - TZ=UTC
+    volumes:
+      - /srv/nfs:/exports:rw
