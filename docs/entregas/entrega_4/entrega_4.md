@@ -290,4 +290,3 @@ Con base en los resultados de las pruebas, se ajustan:
 - **Capacidad nominal**: documentación de la capacidad sostenible del sistema para referencia operativa.
 
 Para mayor detalle, consultar el documento [Pruebas de Carga – Entrega 4](pruebas_de_carga_entrega4.md).
-
