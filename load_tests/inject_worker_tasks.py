@@ -20,34 +20,112 @@ UPLOAD_PATH = os.getenv("UPLOAD_PATH", "./load_tests/test_files")
 
 
 def create_test_video_file(size_mb: int, output_path: Path) -> Path:
+    """
+    Crea un video de prueba usando ffmpeg.
+    Genera un video sintético (color sólido + ruido) del tamaño aproximado solicitado.
+    """
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    size_bytes = size_mb * 1024 * 1024
-    chunk_size = 1024 * 1024
-    print(f"Creating test file: {output_path} ({size_mb}MB)")
-    with open(output_path, "wb") as f:
-        written = 0
-        while written < size_bytes:
-            chunk = os.urandom(min(chunk_size, size_bytes - written))
-            f.write(chunk)
-            written += len(chunk)
-    return output_path
+    print(f"Creating test video file: {output_path} ({size_mb}MB)")
+    
+    # Calcular duración aproximada para alcanzar el tamaño deseado
+    # Bitrate objetivo: ~2 Mbps para 50MB ≈ 200s, 100MB ≈ 400s
+    target_bitrate_kbps = 2000  # 2 Mbps
+    duration_seconds = int((size_mb * 8 * 1024) / (target_bitrate_kbps / 1000))
+    
+    # Usar ffmpeg para generar video sintético
+    import subprocess
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "lavfi",
+        "-i", f"testsrc=duration={duration_seconds}:size=1280x720:rate=30",
+        "-f", "lavfi",
+        "-i", f"sine=frequency=1000:duration={duration_seconds}",
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-b:v", f"{target_bitrate_kbps}k",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        str(output_path)
+    ]
+    
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        actual_size_mb = output_path.stat().st_size / (1024 * 1024)
+        print(f"✓ Video created: {output_path} ({actual_size_mb:.1f}MB)")
+        return output_path
+    except subprocess.CalledProcessError as e:
+        print(f"✗ Error creating video with ffmpeg: {e.stderr}")
+        # Fallback: crear archivo random si ffmpeg falla
+        print(f"Fallback: creating random file...")
+        size_bytes = size_mb * 1024 * 1024
+        chunk_size = 1024 * 1024
+        with open(output_path, "wb") as f:
+            written = 0
+            while written < size_bytes:
+                chunk = os.urandom(min(chunk_size, size_bytes - written))
+                f.write(chunk)
+                written += len(chunk)
+        return output_path
 
 
-def resolve_test_file(size_mb: int, file_arg: Optional[str], no_generate: bool) -> Path:
+def resolve_test_file(size_mb: int, file_arg: Optional[str], no_generate: bool) -> str:
+    """
+    Resuelve la ruta al archivo de prueba. Si usa S3, retorna URI s3://.
+    Si es local/NFS, retorna path local.
+    """
+    import boto3
+    from app.core.config import settings
+    
+    # Si el usuario especificó un archivo, usarlo directamente
     if file_arg:
+        # Puede ser s3:// o path local
+        if file_arg.startswith("s3://"):
+            return file_arg
         p = Path(file_arg)
         if not p.exists():
             raise FileNotFoundError(f"Provided --file does not exist: {p}")
-        return p
-    # Por defecto generar bajo UPLOAD_PATH para que el Worker lo vea (NFS)
+        return str(p)
+    
+    # Si usa S3, crear archivo temporal y subirlo
+    if settings.STORAGE_BACKEND == "s3":
+        s3_key = f"{settings.S3_UPLOAD_PREFIX}/test_video_{size_mb}MB.mp4"
+        s3_uri = f"s3://{settings.AWS_S3_BUCKET}/{s3_key}"
+        
+        # Verificar si ya existe en S3
+        s3_client = boto3.client("s3", region_name=settings.AWS_REGION)
+        try:
+            s3_client.head_object(Bucket=settings.AWS_S3_BUCKET, Key=s3_key)
+            print(f"Using existing S3 file: {s3_uri}")
+            return s3_uri
+        except:
+            pass  # No existe, crear y subir
+        
+        if no_generate:
+            raise FileNotFoundError(f"Test file not found in S3 and --no-generate set: {s3_uri}")
+        
+        # Crear archivo temporal local
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+            tmp_path = Path(tmp.name)
+        
+        create_test_video_file(size_mb, tmp_path)
+        
+        # Subir a S3
+        print(f"Uploading test file to S3: {s3_uri}")
+        s3_client.upload_file(str(tmp_path), settings.AWS_S3_BUCKET, s3_key)
+        tmp_path.unlink()  # Borrar archivo temporal
+        
+        return s3_uri
+    
+    # Filesystem local/NFS
     test_file_path = Path(UPLOAD_PATH) / "test_files" / f"test_video_{size_mb}MB.mp4"
     if test_file_path.exists():
-        return test_file_path
+        return str(test_file_path)
     if no_generate:
         raise FileNotFoundError(
             f"Test file not found and --no-generate set: {test_file_path}"
         )
-    return create_test_video_file(size_mb, test_file_path)
+    return str(create_test_video_file(size_mb, test_file_path))
 
 
 def get_default_user_id(db) -> int:
@@ -103,9 +181,8 @@ def inject_tasks(
             v = create_video_record(db, resolved_user_id, str(test_file_path), title)
             from app.celery_worker import process_video_task
 
-            task = process_video_task.apply_async(
-                args=[v.id, str(test_file_path)], task_id=f"load-test-{uuid.uuid4()}"
-            )
+            # Usar .delay() como en la API (más simple y funciona mejor con SQS)
+            task = process_video_task.delay(v.id, str(test_file_path))
             v.task_id = task.id
             db.commit()
             task_ids.append(task.id)
@@ -146,9 +223,12 @@ def monitor_tasks(task_ids: List[str]):
     print(f"{'=' * 60}")
     print(f"Total tasks: {len(task_ids)}")
     print("Press Ctrl+C to stop monitoring\n")
+    db = SessionLocal()
     try:
-        db = SessionLocal()
         while True:
+            # Expirar caché de SQLAlchemy para forzar refresh desde DB
+            db.expire_all()
+            
             videos = (
                 db.query(Video)
                 .filter(Video.task_id.in_(task_ids))
@@ -169,11 +249,12 @@ def monitor_tasks(task_ids: List[str]):
             )
             if pending == 0 and processing == 0:
                 print("\n\nAll tasks completed!")
-                db.close()
                 break
             time.sleep(2)
     except KeyboardInterrupt:
         print("\n\nMonitoring stopped by user.")
+    finally:
+        db.close()
 
 
 def main():

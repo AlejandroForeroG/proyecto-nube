@@ -187,10 +187,12 @@ python inject_worker_tasks.py \
 
 ### Monitoreo del Worker
 
-**Verificar longitud de cola** (con Redis CLI):
+**Verificar longitud de cola (SQS)**:
 ```bash
-docker compose exec redis redis-cli
-> LLEN celery
+QUEUE_URL=$(aws sqs get-queue-url --queue-name "$SQS_QUEUE_NAME" --query 'QueueUrl' --output text)
+aws sqs get-queue-attributes \
+  --queue-url "$QUEUE_URL" \
+  --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible
 ```
 
 **Ver logs del worker**:

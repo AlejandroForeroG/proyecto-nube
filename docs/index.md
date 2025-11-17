@@ -14,6 +14,9 @@ En esta documentación encontrara
 
 - Entregas
   - Semana 1: [Documento de la entrega](./entregas/semana_1/semana_1.md)
+  - Semana 2: [Documento de la entrega](./entregas/semana_2/semana_2.md)
+  - Semana 3: [Documento de la entrega](./entregas/semana_3/semana_3.md)
+  - Semana 4: [Documento de la entrega](./entregas/entrega_4/entrega_4.md)
 
 ### Notas
 

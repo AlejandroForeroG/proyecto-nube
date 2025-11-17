@@ -78,8 +78,8 @@ def process_video(video_db_id: int, original_path: str):
         if s3_bucket:
             dest_key = f"{settings.S3_PROCESSED_PREFIX}/{video_db_id}_processed.mp4"
             s3_client.upload_file(str(final_tmp), s3_bucket, dest_key)
-        
-            if s3_key:
+            # Condicional: no borrar original en S3 a menos que esté habilitado explícitamente
+            if getattr(settings, "S3_DELETE_ORIGINAL", False) and s3_key:
                 try:
                     s3_client.delete_object(Bucket=s3_bucket, Key=s3_key)
                 except Exception as delete_exc:

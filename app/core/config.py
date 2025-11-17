@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     S3_UPLOAD_PREFIX: str = "uploads"
     S3_PROCESSED_PREFIX: str = "processed"
     S3_URL_EXPIRE_SECONDS: int = 3600
+    S3_DELETE_ORIGINAL: bool = False
     SQS_QUEUE_NAME: str = "cola-nube"
     SQS_VISIBILITY_TIMEOUT: int = 1500
     SQS_WAIT_TIME_SECONDS: int = 20

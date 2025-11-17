@@ -9,6 +9,8 @@
 - Semana 1: [Documento de la entrega](./docs/entregas/semana_1/semana_1.md)
 - Semana 2: [Arquitectura ajustada (EC2 + NFS + RDS)](./docs/entregas/entrega_2/entrega_2.md)
 - Semana 3: [Arquitectura ajustada (Auto Scaling + ALB + S3 + CloudWatch)](./docs/entregas/entrega_3/entrega_3.md)
+- Semana 4: [Pruebas de carga y throughput (SQS + S3 + Worker)](./docs/entregas/entrega_4/pruebas_de_carga_entrega4.md)
+
 ## Documentación 
 ### 1) Estructura del proyecto y cómo funciona cada parte
 
