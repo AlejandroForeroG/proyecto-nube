@@ -8,7 +8,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from celery import Celery
 from dotenv import load_dotenv
 
 from app.core.database import SessionLocal
@@ -17,7 +16,6 @@ from app.models import User, Video, VideoStatus
 # Cargar variables de entorno desde .env lo antes posible
 load_dotenv()
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 UPLOAD_PATH = os.getenv("UPLOAD_PATH", "./load_tests/test_files")
 
 
@@ -80,13 +78,10 @@ def inject_tasks(
     size_mb: int,
     mode: str = "burst",
     rate: int = 10,
-    redis_url: str = REDIS_URL,
     file_arg: Optional[str] = None,
     no_generate: bool = False,
     user_id: Optional[int] = None,
 ) -> List[str]:
-    # Validar conectividad con Redis creando una app Celery (evita errores de env)
-    _ = Celery("worker", broker=redis_url, backend=redis_url)
     test_file_path = resolve_test_file(size_mb, file_arg, no_generate)
     task_ids = []
     print(f"\n{'=' * 60}")
@@ -145,30 +140,24 @@ def inject_tasks(
     return task_ids
 
 
-def monitor_tasks(task_ids: List[str], redis_url: str = REDIS_URL):
-    celery_app = Celery("worker", broker=redis_url, backend=redis_url)
+def monitor_tasks(task_ids: List[str]):
     print(f"\n{'=' * 60}")
     print("MONITORING TASKS")
     print(f"{'=' * 60}")
     print(f"Total tasks: {len(task_ids)}")
     print("Press Ctrl+C to stop monitoring\n")
     try:
+        db = SessionLocal()
         while True:
-            pending = 0
-            processing = 0
-            success = 0
-            failed = 0
-            for task_id in task_ids:
-                result = celery_app.AsyncResult(task_id)
-                state = result.state
-                if state == "PENDING":
-                    pending += 1
-                elif state == "STARTED":
-                    processing += 1
-                elif state == "SUCCESS":
-                    success += 1
-                elif state == "FAILURE":
-                    failed += 1
+            videos = (
+                db.query(Video)
+                .filter(Video.task_id.in_(task_ids))
+                .all()
+            )
+            pending = sum(1 for v in videos if v.status == VideoStatus.uploaded.value)
+            processing = sum(1 for v in videos if v.status == VideoStatus.processing.value)
+            success = sum(1 for v in videos if v.status == VideoStatus.done.value)
+            failed = sum(1 for v in videos if v.status == VideoStatus.failed.value)
             print(
                 f"\r[{datetime.now().strftime('%H:%M:%S')}] "
                 f"Pending: {pending:3d} | "
@@ -180,6 +169,7 @@ def monitor_tasks(task_ids: List[str], redis_url: str = REDIS_URL):
             )
             if pending == 0 and processing == 0:
                 print("\n\nAll tasks completed!")
+                db.close()
                 break
             time.sleep(2)
     except KeyboardInterrupt:
@@ -214,12 +204,6 @@ def main():
         help="Tasks per minute for sustained mode (default: 10)",
     )
     parser.add_argument(
-        "--redis-url",
-        type=str,
-        default=REDIS_URL,
-        help=f"Redis URL (default: {REDIS_URL})",
-    )
-    parser.add_argument(
         "--file",
         type=str,
         default=None,
@@ -246,13 +230,12 @@ def main():
         size_mb=size_mb,
         mode=args.mode,
         rate=args.rate,
-        redis_url=args.redis_url,
         file_arg=args.file,
         no_generate=args.no_generate,
         user_id=args.user_id,
     )
     if args.monitor:
-        monitor_tasks(task_ids, args.redis_url)
+        monitor_tasks(task_ids)
     else:
         print("\nTip: Use --monitor flag to track task progress")
 

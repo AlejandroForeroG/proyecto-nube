@@ -16,8 +16,14 @@ import boto3
 UTC = timezone.utc
 
 try:
-    celery_app = Celery("worker", broker=settings.REDIS_URL, backend=settings.REDIS_URL)
+    celery_app = Celery("worker", broker="sqs://")
     celery_app.conf.update(
+        task_default_queue=settings.SQS_QUEUE_NAME,
+        broker_transport_options={
+            "region": settings.AWS_REGION or "us-east-1",
+            "visibility_timeout": settings.SQS_VISIBILITY_TIMEOUT,
+            "wait_time_seconds": settings.SQS_WAIT_TIME_SECONDS,
+        },
         task_serializer="json",
         result_serializer="json",
         accept_content=["json"],
@@ -25,7 +31,7 @@ try:
         worker_prefetch_multiplier=1,
         task_acks_late=True,
     )
-
+    celery_app.conf.result_backend = None
     celery_app.conf.task_always_eager = (
         bool(int(os.getenv("CELERY_EAGER", "0"))) or settings.TESTING
     )
@@ -96,8 +102,23 @@ def process_video_task(self, video_db_id: int, original_path: str):
         video = db.query(Video).filter(Video.id == video_db_id).first()
         if not video:
             raise ValueError(f"Video with id {video_db_id} not found")
-        video.status = VideoStatus.processing.value
+
+        if video.status in (VideoStatus.processing.value, VideoStatus.done.value):
+            return video.processed_path
+
+        updated_rows = (
+            db.query(Video)
+            .filter(
+                Video.id == video_db_id,
+                Video.status == VideoStatus.uploaded.value,
+            )
+            .update({"status": VideoStatus.processing.value, "updated_at": datetime.now(UTC)}, synchronize_session=False)
+        )
         db.commit()
+        if updated_rows == 0:
+            video = db.query(Video).filter(Video.id == video_db_id).first()
+            return getattr(video, "processed_path", None)
+
         v_processed = process_video(video_db_id, original_path)
         video.processed_path = v_processed
         video.updated_at = datetime.now(UTC)
