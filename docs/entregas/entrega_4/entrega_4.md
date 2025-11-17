@@ -1,6 +1,6 @@
 ## Entrega 4 – Arquitectura Ajustada (Escalabilidad Web + Workers y Mensajería)
 ### Video 
-[link video](https://drive.google.com/file/d/15Z4Oqb6sqETkjekoEOlM91yxWHepG3at/view?usp=sharing)
+[link video](https://drive.google.com/file/d/1j-CGG9F-0TJcAMkxYkkfptpUp249oXOp/view?usp=sharing)
 ### 1) Resumen
 Se extiende la arquitectura de la entrega 3 para escalar no solo la capa web sino también la capa de procesamiento (workers), incorporando Amazon SQS como sistema de mensajería asíncrona entre la API y los workers. Se habilita alta disponibilidad en dos Zonas de Disponibilidad (Multi-AZ) para el balanceador y para los Auto Scaling Groups (ASG) de Web y Workers. El almacenamiento de originales/procesados permanece en Amazon S3 y la base de datos en Amazon RDS. Se estandarizan las instancias EC2 a 2 vCPU, 2 GiB de RAM y 30 GiB de almacenamiento por decisión de negocio.
 
