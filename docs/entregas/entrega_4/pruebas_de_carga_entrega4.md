@@ -177,7 +177,7 @@ Artefactos esperados:
 
 ---
 
-### 5) Corrida inicial (Escenario 2) – piloto sin resultados
+## 5) Escenario 2
 - Objetivo: validar end-to-end el flujo SQS → Worker (ffmpeg) → S3/DB con un caso mínimo antes de la matriz completa.
 - Parámetros:
   - Tamaño: 50 MB
