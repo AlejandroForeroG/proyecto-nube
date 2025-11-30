@@ -2,7 +2,7 @@
 
 ### Video de sustentación
 
-[Link al video](#) 
+[Link al video](https://drive.google.com/file/d/1IKU4Gfjc5zkFFzQcFwRadKTNxUUNeMHJ/view?usp=sharing) 
 
 ### 1) Resumen 
 En esta entrega se migra la arquitectura de EC2 con Auto Scaling Groups a una solución completamente **serverless/container-native** utilizando **Amazon ECS con Fargate**. Esta decisión elimina la gestión de instancias EC2, simplifica el despliegue y reduce el tiempo de escalado (de ~8 minutos en EC2 a segundos en Fargate).

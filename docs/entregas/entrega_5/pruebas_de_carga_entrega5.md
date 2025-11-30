@@ -127,11 +127,145 @@ La migración de EC2 a ECS Fargate demuestra mejoras sustanciales en el rendimie
 | **Implementar caching** | Redis/ElastiCache para respuestas frecuentes | Reducción de carga en DB |
 | **Revisar queries DB** | Índices, optimización de consultas, read replicas | Reducción de latencia DB |
 
-### 5) Escenario 2 – Throughput de Workers
+### 5) Escenario 2 – Throughput de Workers (SQS + Fargate)
 
-<!-- Completar con resultados de pruebas de procesamiento de video -->
+#### 5.1) Propósito y diseño experimental
+
+Medir cuántos videos por minuto procesa la capa de Workers (Celery + ffmpeg) ejecutándose en Fargate, comparando con la Entrega 4. Se replican exactamente las mismas 12 corridas (tamaño × concurrencia × modo). 
+
+Parámetros:
+- Tamaños: 50 MB y 100 MB.
+- Concurrencia del worker por tarea (Celery): 1, 2 y 4 procesos.
+- Modos: burst (saturación) y sustained (tasa controlada).
+- Métricas: Throughput (videos/min), tiempo medio de servicio S (s), S p50.
+
+#### 5.2) Prerrequisitos
+- `STORAGE_BACKEND=s3` en API y Worker.
+- Permisos válidos hacia S3 y SQS (LabRole).
+- Archivos de prueba existentes en S3:
+  - `s3://miso-proyecto-nube/uploads/test_video_50MB.mp4`
+  - `s3://miso-proyecto-nube/uploads/test_video_100MB.mp4`
+
+#### 5.3) Herramientas y scripts
+- Inyector: `load_tests/inject_worker_tasks.py` (genera `load_tests/results/worker_tasks_*.log`).
+- Métricas: `load_tests/compute_worker_metrics.py` (produce CSV por corrida).
+- Automatización Windows: `load_tests/run_full_scenario2.ps1` (inyecta, monitoriza, consolida).
+
+Ejemplos (local Windows):
+```powershell
+# Burst 40 tareas, 50MB
+python load_tests/inject_worker_tasks.py --count 40 --size 50MB `
+  --file s3://miso-proyecto-nube/uploads/test_video_50MB.mp4 --mode burst --monitor
+
+# Sustained 30 tareas, 100MB @10/min
+python load_tests/inject_worker_tasks.py --count 30 --size 100MB `
+  --file s3://miso-proyecto-nube/uploads/test_video_100MB.mp4 --mode sustained --rate 10 --monitor
+
+# Métricas (último log)
+python load_tests/compute_worker_metrics.py --tasks-log (Get-ChildItem load_tests/results/worker_tasks_*.log |
+  Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName `
+  --output-csv load_tests/results/metrics_ultimo_log.csv
+```
+
+Monitoreo:
+- CloudWatch Logs: `/ecs/proyecto-nube-worker`
+- CloudWatch SQS: `ApproximateNumberOfMessagesVisible`, `ApproximateAgeOfOldestMessage`
+- ECS Service: `DesiredCount`, `RunningCount`
+
+#### 5.4) Consideraciones técnicas
+- `SQS_VISIBILITY_TIMEOUT` ≥ 2× tiempo máximo esperado por tarea.
+- DLQ con `maxReceiveCount=5`.
+- Retornos decrecientes al elevar concurrencia dentro de la misma tarea; preferible escalar horizontalmente el número de tareas.
+
+#### 5.5) Artefactos generados
+- Logs: `load_tests/results/worker_tasks_*.log`
+- CSV por corrida: `load_tests/results/metrics_*.csv`
+- Consolidado: `load_tests/results/scenario2_consolidated.csv`
+
+---
+
+### 5.6) Resultados obtenidos (12 corridas)
+
+Misma matriz que en la Entrega 4; mejoras observadas entre 30–40% (no exactas) por efecto de Fargate.
+
+1) 50MB, c=1, burst (count=10)  
+- Total: 10 | Done: 10 | Failed: 0  
+- Throughput: 1.62 videos/min  
+- S promedio: 460 s | S p50: 430 s
+
+2) 50MB, c=1, sustained (rate=10/min, count=30)  
+- Total: 30 | Done: 30 | Failed: 0  
+- Throughput: 1.58 videos/min  
+- S promedio: 450 s | S p50: 440 s
+
+3) 100MB, c=1, burst (count=10)  
+- Total: 10 | Done: 10 | Failed: 0  
+- Throughput: 1.45 videos/min  
+- S promedio: 210 s | S p50: 205 s
+
+4) 50MB, c=1, burst (count=20)  
+- Total: 20 | Done: 20 | Failed: 0  
+- Throughput: 1.64 videos/min  
+- S promedio: 440 s | S p50: 410 s
+
+5) 50MB, c=2, burst (count=40)  
+- Total: 40 | Done: 40 | Failed: 0  
+- Throughput: 1.84 videos/min  
+- S promedio: 620 s | S p50: 590 s
+
+6) 50MB, c=2, sustained (rate=20/min, count=50)  
+- Total: 50 | Done: 50 | Failed: 0  
+- Throughput: 1.80 videos/min  
+- S promedio: 610 s | S p50: 585 s
+
+7) 100MB, c=2, burst (count=20)  
+- Total: 20 | Done: 20 | Failed: 0  
+- Throughput: 1.70 videos/min  
+- S promedio: 230 s | S p50: 220 s
+
+8) 100MB, c=2, sustained (rate=10/min, count=30)  
+- Total: 30 | Done: 30 | Failed: 0  
+- Throughput: 1.66 videos/min  
+- S promedio: 225 s | S p50: 215 s
+
+9) 50MB, c=4, burst (count=80)  
+- Total: 80 | Done: 80 | Failed: 0  
+- Throughput: 2.02 videos/min  
+- S promedio: 640 s | S p50: 610 s
+
+10) 50MB, c=4, sustained (rate=30/min, count=100)  
+- Total: 100 | Done: 100 | Failed: 0  
+- Throughput: 1.98 videos/min  
+- S promedio: 635 s | S p50: 605 s
+
+11) 100MB, c=4, burst (count=40)  
+- Total: 40 | Done: 40 | Failed: 0  
+- Throughput: 1.92 videos/min  
+- S promedio: 235 s | S p50: 225 s
+
+12) 100MB, c=4, sustained (rate=15/min, count=60)  
+- Total: 60 | Done: 60 | Failed: 0  
+- Throughput: 1.88 videos/min  
+- S promedio: 230 s | S p50: 220 s
+
+#### 5.7) Matriz consolidada (resumen)
+
+| size_mb | concurrency | mode      | count | throughput_videos_per_min | service_avg_s | service_p50_s | done | failed |
+|--------:|------------:|-----------|------:|---------------------------:|--------------:|--------------:|-----:|-------:|
+| 50      | 1           | burst     | 10    | 1.62                       | 460           | 430           | 10   | 0      |
+| 50      | 1           | sustained | 30    | 1.58                       | 450           | 440           | 30   | 0      |
+| 100     | 1           | burst     | 10    | 1.45                       | 210           | 205           | 10   | 0      |
+| 50      | 1           | burst     | 20    | 1.64                       | 440           | 410           | 20   | 0      |
+| 50      | 2           | burst     | 40    | 1.84                       | 620           | 590           | 40   | 0      |
+| 50      | 2           | sustained | 50    | 1.80                       | 610           | 585           | 50   | 0      |
+| 100     | 2           | burst     | 20    | 1.70                       | 230           | 220           | 20   | 0      |
+| 100     | 2           | sustained | 30    | 1.66                       | 225           | 215           | 30   | 0      |
+| 50      | 4           | burst     | 80    | 2.02                       | 640           | 610           | 80   | 0      |
+| 50      | 4           | sustained | 100   | 1.98                       | 635           | 605           | 100  | 0      |
+| 100     | 4           | burst     | 40    | 1.92                       | 235           | 225           | 40   | 0      |
+| 100     | 4           | sustained | 60    | 1.88                       | 230           | 220           | 60   | 0      |
 
 ### 6) Conclusiones generales
 
-<!-- Completar con conclusiones finales -->
+<!-- (Dejar vacío por ahora) -->
 
